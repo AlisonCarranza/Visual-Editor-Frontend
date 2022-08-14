@@ -50,14 +50,17 @@
         </div>
       </div>
     </div>
-  </div>
-      
+    
+  </div>      
 
 </template>
 
 <script>
 import Drawflow from 'drawflow'
 import { h, getCurrentInstance, render, readonly, onMounted, shallowRef} from 'vue'
+
+import NumberVue from './components/Number.vue';
+//import BinaryOperations from './components/BinaryOperations.vue';
 
 
 export default {
@@ -70,9 +73,10 @@ export default {
     const editor = shallowRef({});
     const internalInstance = getCurrentInstance();
     const Vue = { version: 3, h, render };
-
-    //internalInstance.appContext.app._context.config.globalProperties.$df = editor;
     
+    //almacenar como propiedad global el objeto editor
+    internalInstance.appContext.app._context.config.globalProperties.$editor = editor;
+
 
     const lista = readonly([
       {
@@ -115,13 +119,23 @@ export default {
       console.log(nodesTree);
       console.log(idNode);
       
-      root = idNode;
       addNode(idNode);
 
       console.log(root);
       console.log(nodesTree);
 
     };
+
+    //actualizar raiz arbol
+    /*const foundRoot = () => {
+      nodesTree.forEach(node => {
+        if(node.nodeFather==null){
+           root = node.id;
+           console.log("root tree:",root);
+        }
+      });
+
+    };*/
 
     const addNode = (idNode) => {
       console.log(nodesTree);
@@ -248,15 +262,10 @@ export default {
           editor.value.registerNode('Sub', slackchat);
           break;
         case 'Integer':
-          var Number = `
-          <div>
-            <h4>Number</h4>
-            <h5>Valor : </h5>
-            <input class="form-control" type="number" placeholder="Numero" df-number required />
-          </div>
-          `
-          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', {}, Number );
-          editor.value.registerNode('Number', Number);
+          
+          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', {NodeFather:null,Num:0}, 'Number' , 'vue');
+          
+          
           break;
 
         default:
@@ -288,6 +297,9 @@ export default {
       editor.value = new Drawflow(id, Vue, internalInstance.appContext.app._context);
       editor.value.start();
 
+      //registrar componentes
+      editor.value.registerNode('Number', NumberVue, {}, {}, 'vue');
+
       // Events! saltan cuando sean manipulados los nodos
       editor.value.on('nodeCreated', function(id) {
         console.log("Node created " + id);
@@ -307,7 +319,8 @@ export default {
 
     return { lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode };
     
-  },
+  }
+  
   
 }
 </script>
