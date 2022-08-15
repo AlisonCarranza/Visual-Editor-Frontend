@@ -60,7 +60,10 @@ import Drawflow from 'drawflow'
 import { h, getCurrentInstance, render, readonly, onMounted, shallowRef} from 'vue'
 
 import NumberVue from './components/Number.vue';
-//import BinaryOperations from './components/BinaryOperations.vue';
+import BinaryOperations from './components/BinaryOperations.vue';
+
+//vuex
+import { useStore } from "vuex";
 
 
 export default {
@@ -77,6 +80,8 @@ export default {
     //almacenar como propiedad global el objeto editor
     internalInstance.appContext.app._context.config.globalProperties.$editor = editor;
 
+    //acceso a store para manejar estados
+    const { state, dispatch } = useStore();
 
     const lista = readonly([
       {
@@ -165,6 +170,7 @@ export default {
 
     };
     
+    //cargar conecciones nodo
     const updateNode = (connection) => {
       console.log('conexion info : ',connection)
 
@@ -173,17 +179,56 @@ export default {
         if (connection.output_id == node.id) {
             node.nodeFather = connection.input_id;
             console.log(nodesTree); 
+
+            let dataNode = editor.value.getNodeFromId(node.id);
+            editor.value.updateNodeDataFromId(node.id,{NodeFather:connection.input_id,Num:dataNode.data.Num});
+
+            console.log('impresion nodo al crear conexion',editor.value.getNodeFromId(node.id));
         } else if(connection.input_id == node.id){
             if (node.childs==null) {
                node.childs= []; 
             } 
-            node.childs.push(connection.output_id);
+            let dataChild = editor.value.getNodeFromId(connection.output_id);
+            node.childs.push({NodeChild:connection.output_id,data:dataChild.data.Num});
             console.log(nodesTree); 
+
+            let dataNode = editor.value.getNodeFromId(node.id);
+            editor.value.updateNodeDataFromId(node.id,{NodeFather:dataNode.data.NodeFather,NodeChilds:node.childs});
+
+            console.log('impresion nodo al crear conexion info padre',editor.value.getNodeFromId(node.id));
+
+
+            dispatch("setOperationAction", { id: connection.input_id, value:{Number1:dataChild.data.Num}});
+
+            console.log('dispatch',{ id: connection.input_id, value:{Number1:dataChild.data.Num}});
+            console.log('cambio estado', state.Operations);
         }
       });
 
       
     };
+
+
+    //actualizar data nodo
+    const updateData = (id) => {
+      
+        console.log('actualizar data del nodo:',id);
+        const node = editor.value.getNodeFromId(id);
+
+        const idFather = node.data.NodeFather;
+      if (idFather!=null) {
+        
+        const Father = editor.value.getNodeFromId(idFather);
+        const dataFather = Father.data;
+
+        editor.value.updateNodeDataFromId(idFather,{NodeFather:dataFather.NodeFather,NodeChilds:[{NodeChild:id, data:node.data.number}]});
+
+        dispatch("setOperationAction", { id: idFather, value:{Number1:node.data.number}});
+        console.log('entra a actualizar data',node);
+      }
+      
+
+    }
 
     
 
@@ -236,17 +281,8 @@ export default {
        
       switch (name) {
         case 'Add':
-        var facebook = `
-        <div>
-          <h3>Add</h3>
-          <input class="form-control" type="number" placeholder="Resultado" disabled />
-          <span><a>Number 1:</a></span>
-          <br />
-          <span><a>Number 2:</a></span>
-        </div>
-        `;
-          editor.value.addNode('Add', 2,  1, pos_x, pos_y, 'Add', {}, facebook );
-          editor.value.registerNode('Add', facebook);
+          editor.value.addNode('Add', 2,  1, pos_x, pos_y, 'Add', {NodeFather:null,NodeChilds:null}, 'Add','vue');
+          
           break;
         case 'Sub':
           var slackchat = `
@@ -299,6 +335,7 @@ export default {
 
       //registrar componentes
       editor.value.registerNode('Number', NumberVue, {}, {}, 'vue');
+      editor.value.registerNode('Add', BinaryOperations , {}, {}, 'vue');
 
       // Events! saltan cuando sean manipulados los nodos
       editor.value.on('nodeCreated', function(id) {
@@ -314,10 +351,17 @@ export default {
 
       updateNode(connection);
       })
+      
+      editor.value.on('nodeDataChanged', function(id) {
+        //actualizar datos heredados a otros nodos
+        updateData(id);
+      
+      })
+
 
     });
 
-    return { lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode };
+    return { lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
     
   }
   

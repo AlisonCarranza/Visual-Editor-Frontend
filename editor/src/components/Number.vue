@@ -8,32 +8,40 @@
 </template>
 
 <script>
-import { onMounted, ref, getCurrentInstance} from "vue";
+import { onMounted, ref, getCurrentInstance, shallowRef} from "vue";
+import {useStore} from "vuex";
 
 
 export default {
    name: "NumberVue",
 
    setup() {
+      const {dispatch} = useStore();
+
       let newNumber = ref(0);
       const internalInstance = getCurrentInstance();
 
       let editor = internalInstance.appContext.app._context.config.globalProperties.$editor;
       const nodeId = editor.value.nodeId;
 
+      const dataNode = shallowRef({});
+
       console.log('editor',editor.value.nodeId);
 
       const updateNewNumber = (e) => {
+         dataNode.value = editor.value.getNodeFromId(nodeId);
          newNumber.value = e.target.value;
-         editor.value.updateNodeDataFromId(nodeId, {Num: parseInt(newNumber.value)});
+         editor.value.updateNodeDataFromId(nodeId, {NodeFather:dataNode.value.data.NodeFather,Num: parseInt(newNumber.value)});
          console.log('editor',editor.value.getNodeFromId(nodeId));
+
+         dispatch("setNumberAction", {id: nodeId.value, value: parseInt(e.target.value)});
       };
       
       onMounted(() => {
          
       });
 
-      return {newNumber, nodeId, updateNewNumber};
+      return {newNumber, nodeId, dataNode, updateNewNumber};
    }
 };
 </script>
