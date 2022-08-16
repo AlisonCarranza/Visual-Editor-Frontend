@@ -1,6 +1,7 @@
 <template>
 
   <div id="app">
+    
     <div class="container cuerpo">
       <div class="row">
         <div class="col-3">
@@ -81,22 +82,18 @@ export default {
     internalInstance.appContext.app._context.config.globalProperties.$editor = editor;
 
     //acceso a store para manejar estados
-    const { state, dispatch } = useStore();
+    const { dispatch } = useStore();
 
     const lista = readonly([
       {
-        expression: "Number",
-        token: "Integer",
-        input: 0,
-        output: 1,
+        expression: "Integer",
+        token: "Number",
         value:null,
       },
       {
         expression: "BinOp",
         token: "Add",
         operador:'+',
-        input: 2,
-        output: 1,
         left:null,
         right:null,
       },
@@ -104,8 +101,6 @@ export default {
         expression: "BinOp",
         token: "Sub",
         operador: '-',
-        input: 2,
-        output: 1,
         left:null,
         right:null,
       }
@@ -152,16 +147,19 @@ export default {
       if (node.name=='Add' || node.name =='Sub') {
         nodesTree.push({
         id:node.id,
-        expression: node.name,
+        token: node.name,
         nodeFather:null,
-        childs:null});
+        expression:'BinOp',
+        value:0,
+        childLeft:null,
+        childRight:null});
         
       } else if(node.name=='Number'){
         nodesTree.push({
         id:node.id,
-        expression: node.name,
+        token: node.name,
         nodeFather:null,
-        token: "Integer",
+        expression: "Integer",
         value:0});
         
       }
@@ -177,31 +175,63 @@ export default {
       //output_id =  hijos , input_id =padre
       nodesTree.forEach((node) => {
         if (connection.output_id == node.id) {
-            node.nodeFather = connection.input_id;
+            
             console.log(nodesTree); 
 
             let dataNode = editor.value.getNodeFromId(node.id);
+            //update editor nodes
             editor.value.updateNodeDataFromId(node.id,{NodeFather:connection.input_id,Num:dataNode.data.Num});
+
+            //update nodes Tree
+            node.nodeFather = connection.input_id;
 
             console.log('impresion nodo al crear conexion',editor.value.getNodeFromId(node.id));
         } else if(connection.input_id == node.id){
-            if (node.childs==null) {
-               node.childs= []; 
-            } 
-            let dataChild = editor.value.getNodeFromId(connection.output_id);
-            node.childs.push({NodeChild:connection.output_id,data:dataChild.data.Num});
+            console.log('connecion info',connection.input_class);
+            let num1 = 0;
+            let num2 = 0;
+            let dataChild1=null;
+            let dataChild2=null;
+
+  
+            let dataNode = editor.value.getNodeFromId(node.id);
+
+            
+            if (connection.input_class== 'input_1' && node.childLeft==null) {
+              node.childLeft = connection.output_id;
+              dataChild1 = editor.value.getNodeFromId(connection.output_id);
+              num1 = dataChild1.data.Num;
+
+              if (node.childRight!=null) {
+                dataChild2 = editor.value.getNodeFromId(node.childRight);
+                num2 = dataChild2.data.Num;
+                
+              }
+              
+            }else if(connection.input_class== 'input_2' && node.childRight==null){
+              node.childRight = connection.output_id;
+              let dataChild2 = editor.value.getNodeFromId(connection.output_id);
+              num2 = dataChild2.data.Num;
+
+              if (node.childLeft!=null) {
+                dataChild1 = editor.value.getNodeFromId(node.childLeft);
+                num1 = dataChild1.data.Num;
+                
+              }
+             
+            }
             console.log(nodesTree); 
 
-            let dataNode = editor.value.getNodeFromId(node.id);
-            editor.value.updateNodeDataFromId(node.id,{NodeFather:dataNode.data.NodeFather,NodeChilds:node.childs});
+            let result = num1 + num2;
+            
+            editor.value.updateNodeDataFromId(node.id,{NodeFather:dataNode.data.NodeFather,
+            ChildLeft:node.childLeft,
+            ChildRight:node.childRight,
+            Result:result});
 
             console.log('impresion nodo al crear conexion info padre',editor.value.getNodeFromId(node.id));
-
-
-            dispatch("setOperationAction", { id: connection.input_id, value:{Number1:dataChild.data.Num}});
-
-            console.log('dispatch',{ id: connection.input_id, value:{Number1:dataChild.data.Num}});
-            console.log('cambio estado', state.Operations);
+            dispatch("setOperationAction", { id: connection.input_id, value:{Number1:num1, Number2:num2, Result:result}});
+            console.log('halgo anda raro conexion',{Number1:num1, Number2:num2, Result:result});
         }
       });
 
@@ -209,7 +239,7 @@ export default {
     };
 
 
-    //actualizar data nodo
+    //actualizar data nodo BinOp cuando se actualiza la data del nodo Number
     const updateData = (id) => {
       
         console.log('actualizar data del nodo:',id);
@@ -217,14 +247,38 @@ export default {
 
         const idFather = node.data.NodeFather;
       if (idFather!=null) {
-        
-        const Father = editor.value.getNodeFromId(idFather);
-        const dataFather = Father.data;
 
-        editor.value.updateNodeDataFromId(idFather,{NodeFather:dataFather.NodeFather,NodeChilds:[{NodeChild:id, data:node.data.number}]});
+            let num1 = 0;
+            let num2 = 0;
+            
+            const Father = editor.value.getNodeFromId(idFather);
+            const dataFather = Father.data;
 
-        dispatch("setOperationAction", { id: idFather, value:{Number1:node.data.number}});
-        console.log('entra a actualizar data',node);
+            if (dataFather.ChildLeft== id) {
+              num1 = node.data.number;
+              if (dataFather.ChildRight!=null) {
+                let brother = editor.value.getNodeFromId(dataFather.ChildRight);
+                num2 = brother.data.Num; 
+              }
+              
+            }else if(dataFather.ChildRight==id){
+              num2 = node.data.number;
+              if (dataFather.ChildLeft!=null) {
+                let brother = editor.value.getNodeFromId(dataFather.ChildLeft);
+                num1 = brother.data.Num; 
+              }
+            }
+            console.log(nodesTree); 
+
+            let result = parseInt(num1) + parseInt(num2);
+
+        editor.value.updateNodeDataFromId(idFather,{NodeFather:dataFather.NodeFather,
+            ChildLeft:dataFather.ChildLeft,
+            ChildRight:dataFather.ChildRight,
+            Result:result});
+
+        dispatch("setOperationAction", { id: idFather, value:{Number1:num1, Number2:num2, Result:result}});
+        console.log('entra a actualizar data wtf!!!',{Number1:num1, Number2:num2, Result:result});
       }
       
 
@@ -266,9 +320,13 @@ export default {
         mobile_item_selec = "";
       } else {
         ev.preventDefault();
-        var data = ev.dataTransfer.getData("node");
-        addNodeToDrawFlow(data, ev.clientX, ev.clientY);
+        var token = ev.dataTransfer.getData("node");
+        addNodeToDrawFlow(token, ev.clientX, ev.clientY);
       }
+    };
+
+    const enableDrop = (ev) => {
+      ev.preventDefault();
     };
     
     const addNodeToDrawFlow = (name, pos_x, pos_y) => {
@@ -278,44 +336,35 @@ export default {
       (editor.value.precanvas.getBoundingClientRect().y * 
       ( editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)));
 
-       
-      switch (name) {
-        case 'Add':
-          editor.value.addNode('Add', 2,  1, pos_x, pos_y, 'Add', {NodeFather:null,NodeChilds:null}, 'Add','vue');
-          
-          break;
-        case 'Sub':
-          var slackchat = `
-          <div>
-            <h3>Sub</h3>
-            <input class="form-control" type="number" placeholder="Resultado" disabled />
-            <span><a>Number 1:</a></span>
-            <br />
-            <span><a>Number 2:</a></span>
-          </div>
-          `;
-          editor.value.addNode('Sub', 2, 1, pos_x, pos_y, 'Sub', {}, slackchat );
-          editor.value.registerNode('Sub', slackchat);
-          break;
-        case 'Integer':
-          
-          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', {NodeFather:null,Num:0}, 'Number' , 'vue');
-          
-          
-          break;
-
-        default:
-      }
-    
-
-      console.log(pos_y);
-      console.log(pos_x);
-      console.log(editor.value);
-      
+      setNodeType(name,pos_x,pos_y);
     };
 
-    const enableDrop = (ev) => {
-      ev.preventDefault();
+    const setNodeType = (token,pos_x,pos_y) => {
+      console.log('setNodeType',token);
+      let data = {};
+      let name = '';
+      let arithmeticOp = '';
+
+      lista.forEach(nodeType => {
+         if (nodeType.token == token) {
+            data = nodeType;
+            name = nodeType.expression;
+         }
+        
+      });
+      switch (name) {
+        case 'BinOp':
+          arithmeticOp = data.token;
+          editor.value.addNode(arithmeticOp, 2,  1, pos_x, pos_y, arithmeticOp, {NodeFather:null,ChildLeft:null,ChildRight:null,Result:0}, arithmeticOp,'vue');
+          break;
+        case 'Integer':
+          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', {NodeFather:null,Num:0}, 'Number' , 'vue');
+        break;
+        default:
+          console.log('no se encontro');
+        break;
+      }
+      
     };
 
     const generateCode = () => {
@@ -323,7 +372,7 @@ export default {
       console.log(exportdata);
     };
 
-
+    
 
     onMounted(() => {
   
@@ -333,23 +382,27 @@ export default {
       editor.value = new Drawflow(id, Vue, internalInstance.appContext.app._context);
       editor.value.start();
 
+      //////////////////////////////////////////////////////////////////////////////////////////////////////
+
       //registrar componentes
       editor.value.registerNode('Number', NumberVue, {}, {}, 'vue');
-      editor.value.registerNode('Add', BinaryOperations , {}, {}, 'vue');
+      editor.value.registerNode('Add', BinaryOperations , {title:'Add'}, {}, 'vue');
+      editor.value.registerNode('Sub', BinaryOperations , {title:'Sub'}, {}, 'vue');
+      editor.value.registerNode('Mul', BinaryOperations , {title:'Mul'}, {}, 'vue');
+      editor.value.registerNode('Div', BinaryOperations , {title:'Div'}, {}, 'vue');
 
       // Events! saltan cuando sean manipulados los nodos
       editor.value.on('nodeCreated', function(id) {
         console.log("Node created " + id);
-        createTree(id);
-        // caundo se cree un nuevo nodo se almacenara en la lista nodos
+        createTree(id); //caundo se cree un nuevo nodo se almacenara en la lista nodos
       })
 
       // cuando se cree la conexion entre nodos se actualizara el arbol
       editor.value.on('connectionCreated', function(connection) {
-      console.log('Connection created');
-      console.log(connection);
+        console.log('Connection created');
+        console.log(connection);
 
-      updateNode(connection);
+        updateNode(connection); 
       })
       
       editor.value.on('nodeDataChanged', function(id) {
@@ -361,7 +414,7 @@ export default {
 
     });
 
-    return { lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
+    return {setNodeType,lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
     
   }
   
