@@ -31,10 +31,18 @@ export default {
       const updateNewNumber = (e) => {
          dataNode.value = editor.value.getNodeFromId(nodeId);
          newNumber.value = e.target.value;
-         editor.value.updateNodeDataFromId(nodeId, {NodeFather:dataNode.value.data.NodeFather,Num: parseInt(newNumber.value)});
-         console.log('editor',editor.value.getNodeFromId(nodeId));
 
-         dispatch("setNumberAction", {id: nodeId.value, value: parseInt(e.target.value)});
+            if (isNaN(parseInt(e.target.value))) { 
+              newNumber.value = 0;
+              console.log('nan',newNumber.value);
+            }
+
+            editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.value.data.Father,Num: parseInt(newNumber.value)});
+            console.log('editor',editor.value.getNodeFromId(nodeId));
+
+            dispatch("setNumberAction", {id: nodeId.value, value: parseInt(e.target.value)});
+         
+         
       };
       
       onMounted(() => {
