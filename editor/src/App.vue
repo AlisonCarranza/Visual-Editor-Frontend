@@ -46,6 +46,8 @@ import { h, getCurrentInstance, render, readonly, onMounted, shallowRef } from '
 
 import NumberVue from './components/Number.vue';
 import BinaryOperations from './components/BinaryOperations.vue';
+import VariableVue from './components/Variable.vue';
+import AssignVue from './components/Assign.vue';
 
 //vuex
 import { useStore } from "vuex";
@@ -73,6 +75,18 @@ export default {
         expression: "Declarative",
         token: "Number",
         value: null,
+      },
+      {
+        expression: "Variable",
+        token: "Variable",
+        value: null,
+      },
+      {
+        expression: "Assign",
+        token: "Assign",
+        operador: '=',
+        left: null,
+        right: null,
       },
       {
         expression: "BinOp",
@@ -166,9 +180,26 @@ export default {
             
             break;
           case 'Assign':
+            nodesTree.push({
+              id: node.id,
+              token: node.name,
+              father: null,
+              expression: "Assign",
+              value: 0,
+              childLeft: null,
+              childRight: null
+            });
             
             break;
-          case 'If':
+          case 'Variable':
+            nodesTree.push({
+              id: node.id,
+              token: node.name,
+              father: null,
+              expression: "Variable",
+              value: 0,
+              variable :null
+            });
             
             break;
         
@@ -356,7 +387,8 @@ export default {
         console.log('dispath qu', { Number1: num1, Number2: num2, Result: result, Father: dataFather.Father });
       }
     }
-
+    
+    //calcular operacion aritmetica
     const getResultOperation = (num1, num2, name) => {
 
       let result;
@@ -385,7 +417,8 @@ export default {
 
       return result;
     };
-
+    
+    //recursividad nodo Operaciones Aritmeticas
     const updateRecursiveArithOp = (idFather,value) => {
     
      const nodeFather = editor.value.getNodeFromId(idFather);
@@ -479,6 +512,7 @@ export default {
       ev.preventDefault();
     };
 
+
     const addNodeToDrawFlow = (name, pos_x, pos_y) => {
       pos_x = pos_x * (editor.value.precanvas.clientWidth / (editor.value.precanvas.clientWidth * editor.value.zoom)) - (editor.value.precanvas.getBoundingClientRect().x * (editor.value.precanvas.clientWidth / (editor.value.precanvas.clientWidth * editor.value.zoom)));
       pos_y = pos_y *
@@ -510,6 +544,12 @@ export default {
         case 'Declarative':
           editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', { Father: null, Value: 0 }, 'Number', 'vue');
           break;
+        case 'Assign':
+          editor.value.addNode('Assign', 2, 1, pos_x, pos_y, 'Assign', { Father: null, ChildLeft: null, ChildRight: null, Value: 0 }, 'Assign', 'vue');
+          break;
+        case 'Variable':
+          editor.value.addNode('Variable', 0, 1, pos_x, pos_y, 'Variable', { Father: null, Variable:'', Value:0}, 'Variable', 'vue');
+          break;
         default:
           console.log('no se encontro');
           break;
@@ -540,6 +580,10 @@ export default {
       editor.value.registerNode('Sub', BinaryOperations, { title: 'Sub' }, {}, 'vue');
       editor.value.registerNode('Mul', BinaryOperations, { title: 'Mul' }, {}, 'vue');
       editor.value.registerNode('Div', BinaryOperations, { title: 'Div' }, {}, 'vue');
+
+      editor.value.registerNode('Variable', VariableVue, {}, {}, 'vue');
+      editor.value.registerNode('Assign', AssignVue, {}, {}, 'vue');
+
 
       // Events! saltan cuando sean manipulados los nodos
       editor.value.on('nodeCreated', function (id) {
