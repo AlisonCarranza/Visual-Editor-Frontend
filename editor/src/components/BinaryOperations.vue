@@ -2,7 +2,7 @@
    <div>
       <h3>{{title}}</h3>
       
-      <input class="form-control" type="number" placeholder="Result" :value="operation?.Result" disabled />
+      <input class="form-control" type="number" @change="updateResult" placeholder="Result" :value="operation?.Result" df-number disabled />
       <span
          ><a>Number 1--- {{ operation?.Number1}}</a></span
       >
@@ -34,6 +34,10 @@ export default {
       const store = useStore();
 
       const operation = computed(() => store.state.Operations[nodeId.value]);
+
+      const updateResult = (e) => {
+         console.log('Si cambio',e.target.value);
+      };
       
       
       onMounted(() => {
@@ -41,7 +45,7 @@ export default {
          
       });
 
-      return { nodeId , operation};
+      return { nodeId , operation, updateResult};
 
    },
 };

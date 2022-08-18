@@ -70,7 +70,7 @@ export default {
 
     const lista = readonly([
       {
-        expression: "Integer",
+        expression: "Declarative",
         token: "Number",
         value: null,
       },
@@ -148,19 +148,33 @@ export default {
           token: node.name,
           father: null,
           expression: 'BinOp',
-          result: null,
+          value: 0,
           childLeft: null,
           childRight: null
         });
 
-      } else if (node.name == 'Number') {
-        nodesTree.push({
-          id: node.id,
-          token: node.name,
-          father: null,
-          expression: "Integer",
-          value: 0
-        });
+      } else{
+        switch (node.name) {
+          case 'Number':
+            nodesTree.push({
+              id: node.id,
+              token: node.name,
+              father: null,
+              expression: "Declarative",
+              value: 0
+            });
+            
+            break;
+          case 'Assign':
+            
+            break;
+          case 'If':
+            
+            break;
+        
+          default:
+            break;
+        }
 
       }
 
@@ -173,84 +187,136 @@ export default {
       console.log('conexion info : ', connection)
 
       //output_id =  hijos , input_id =padre
+      
       nodesTree.forEach((node) => {
-        if (connection.output_id == node.id) {
-          let nodeChild = editor.value.getNodeFromId(node.id);
-          //update editor nodes
-          editor.value.updateNodeDataFromId(node.id, { Father: connection.input_id, Num: nodeChild.data.Num });
-          //update nodes Tree
+        if (connection.output_id == node.id) {//agregar el padre al hijo
+          let dataNodeChild = getFatherNode(node.id,connection.input_id);
+          editor.value.updateNodeDataFromId(node.id, dataNodeChild);
           node.father = connection.input_id;
+          console.log('estoy en el hijo',dataNodeChild);
 
-          console.log(nodesTree);
-
-        } else if (connection.input_id == node.id) {
-          let num1 = 0;
-          let num2 = 0;
-          let Child1 = null;
-          let Child2 = null;
-
-
-          let nodefather = editor.value.getNodeFromId(node.id);
-
-
-          if (connection.input_class == 'input_1' && node.childLeft == null) {
-            //update nodes tree
-            node.childLeft = connection.output_id;
-
-            Child1 = editor.value.getNodeFromId(connection.output_id);
-            num1 = Child1.data.Num;
-
-            if (node.childRight != null) {
-              Child2 = editor.value.getNodeFromId(node.childRight);
-              num2 = Child2.data.Num;
-            }
-
-          } else if (connection.input_class == 'input_2' && node.childRight == null) {
-            node.childRight = connection.output_id;
-
-            Child2 = editor.value.getNodeFromId(connection.output_id);
-            num2 = Child2.data.Num;
-
-            if (node.childLeft != null) {
-              Child1 = editor.value.getNodeFromId(node.childLeft);
-              num1 = Child1.data.Num;
-            }
-
-          }
-          console.log(nodesTree);
-
-          let result = getResultOperation(parseInt(num1), parseInt(num2), nodefather.name);
-
-          editor.value.updateNodeDataFromId(node.id, {
-            Father: nodefather.data.Father,
-            ChildLeft: node.childLeft,
-            ChildRight: node.childRight,
-            Result: result
-          });
-
+        } else if (connection.input_id == node.id) { //agregar los hijos al padre
+          let dataNodeFather = getChildsNode(node.id,connection.output_id,connection.input_class);
+          editor.value.updateNodeDataFromId(node.id, dataNodeFather);
+          node.childLeft = dataNodeFather.ChildLeft;
+          node.childRight = dataNodeFather.ChildRight;
+          node.value = dataNodeFather.Value;
+          
+          console.log('estoy en el padre',nodesTree);
           console.log('impresion nodo al crear conexion info padre', editor.value.getNodeFromId(node.id));
-          dispatch("setOperationAction", { id: connection.input_id, value: { Number1: num1, Number2: num2, Result: result } });
         }
       });
     };
 
+    const getFatherNode = (idNode,idFather) =>{
+      const nodeSelect = editor.value.getNodeFromId(idNode);
+      let dataNode = {};
+      let name = nodeSelect.name;
+      console.log('a ver node Select',nodeSelect);
+
+      if (name == 'Add' || name == 'Sub' || name == 'Mul' || name == 'Div' ) {
+        name = 'BinOp';
+      }
+      switch (name) {
+        case 'BinOp':
+          dataNode = {Father:idFather, ChildLeft: nodeSelect.data.ChildLeft, 
+                      ChildRight: nodeSelect.data.ChildRight,
+                      Value: nodeSelect.data.Value};
+          break;
+        case 'Number':
+          dataNode = {Father:idFather,Value: nodeSelect.data.Value};
+          break;
+      
+        default:
+          break;
+      }
+
+      return dataNode;
+
+    }
+
+    const getChildsNode = (idNode,idChild,input) =>{
+      const nodeSelect = editor.value.getNodeFromId(idNode);
+      let dataNode = {};
+      let name = nodeSelect.name;
+
+      if (name == 'Add' || name == 'Sub' || name == 'Mul' || name == 'Div' ) {
+        name = 'BinOp';
+      }
+      switch (name) {
+        case 'BinOp':{
+          let num1 = 0;
+          let num2 = 0;
+          let result = 0;
+
+          let Child1 = editor.value.getNodeFromId(idChild);
+          let Child2 = null;
+          let nodeTree = {childLeft:null,childRight:null};
+          console.log('hijo ',Child1);
+
+
+          if (input == 'input_1') {
+            //update nodes tree
+            nodeTree.childLeft = idChild;
+            nodeTree.childRight = nodeSelect.data.ChildRight;
+            num1 = Child1.data.Value;
+
+            if (nodeTree.childRight != null) {
+              Child2 = editor.value.getNodeFromId(nodeTree.childRight); 
+              num2 = Child2.data.Value;
+            }
+          } else if (input == 'input_2') {
+             nodeTree.childRight = idChild;
+             nodeTree.childLeft = nodeSelect.data.ChildLeft;
+             num2 = Child1.data.Value;
+
+            if (nodeTree.childLeft != null) {
+              Child2 = editor.value.getNodeFromId(nodeTree.childLeft);
+              num1 = Child2.data.Value;
+            }
+          }
+          result = getResultOperation(parseInt(num1), parseInt(num2), nodeSelect.name);
+          
+          dataNode = {Father:nodeSelect.data.Father, 
+                      ChildLeft: nodeTree.childLeft, 
+                      ChildRight: nodeTree.childRight,
+                      Value: result};
+
+          dispatch("setOperationAction", { id:idNode, 
+          value: { Number1: num1, Number2: num2, Result: result } });
+
+          console.log({ Number1: num1, Number2: num2, Result: result });
+        }
+          break;
+        case 'Number':
+          console.log('imposible');
+          break;
+      
+        default:
+          break;
+      }
+
+      return dataNode;
+
+    }
 
     //actualizar data nodo BinOp cuando se actualiza la data del nodo Number
     const updateData = (id) => {
-
-      console.log('actualizar data del nodo:wtf', id);
       const node = editor.value.getNodeFromId(id);
-      console.log('actualizar data del nodo:wtf', node);
+      console.log('actualizar data del nodo:wtf');
       const idFather = node.data.Father;
+
       if (idFather != null) {
+        console.log(node.data.number);
 
         let num1 = 0;
         let num2 = 0;
-        let number = node.data.number;
+        let number = parseInt(node.data.number);
 
         const Father = editor.value.getNodeFromId(idFather);
         const dataFather = Father.data;
-        if (isNaN(parseInt(node.data.number))) {
+        
+        if (node.data.number==''){//isNaN(parseInt(node.data.number))) {
           number = 0;
         }
 
@@ -258,14 +324,14 @@ export default {
           num1 = number;
           if (dataFather.ChildRight != null) {
             let brother = editor.value.getNodeFromId(dataFather.ChildRight);
-            num2 = brother.data.Num;
+            num2 = brother.data.Value;
           }
 
         } else if (dataFather.ChildRight == id) {
           num2 = number;
           if (dataFather.ChildLeft != null) {
             let brother = editor.value.getNodeFromId(dataFather.ChildLeft);
-            num1 = brother.data.Num;
+            num1 = brother.data.Value;
           }
         }
         console.log(nodesTree);
@@ -276,17 +342,18 @@ export default {
           Father: dataFather.Father,
           ChildLeft: dataFather.ChildLeft,
           ChildRight: dataFather.ChildRight,
-          Result: result
+          Value: result
         });
 
         nodesTree.forEach(node => {
              if (node.id == idFather) {
-                 node.result = result;
+                 node.value = result;
              }
         });
 
         dispatch("setOperationAction", { id: idFather, value: { Number1: num1, Number2: num2, Result: result } });
-        console.log('dispath', { Number1: num1, Number2: num2, Result: result, Father: dataFather.Father });
+        updateRecursiveArithOp(idFather,{ Number1: num1, Number2: num2, Result: result });
+        console.log('dispath qu', { Number1: num1, Number2: num2, Result: result, Father: dataFather.Father });
       }
     }
 
@@ -317,6 +384,57 @@ export default {
       }
 
       return result;
+    };
+
+    const updateRecursiveArithOp = (idFather,value) => {
+    
+     const nodeFather = editor.value.getNodeFromId(idFather);
+     const idNextFather = nodeFather.data.Father;
+     console.log('idNextFather',nodeFather);
+
+    if(idNextFather!=null){ 
+      const nextFather = editor.value.getNodeFromId(idNextFather);
+
+      if (nextFather.name == 'Add' || nextFather.name == 'Sub' || nextFather.name == 'Mul' || nextFather.name == 'Div'){
+
+      let newNum1 = 0;
+      let newNum2 = 0;
+      let result = value.Result;
+      console.log('nextFather',nextFather);
+      
+      if (nextFather.data.ChildLeft == idFather) {
+          newNum1 = value.Number1;
+          if (nextFather.data.ChildRight != null) {
+            let childRight = editor.value.getNodeFromId(nextFather.data.ChildRight);
+            newNum2 = childRight.data.Value;
+          }
+
+      } else if (nextFather.data.ChildRight == idFather) {
+          newNum2 = value.Number2;
+          if (nextFather.data.childLeft != null) {
+            let childLeft = editor.value.getNodeFromId(nextFather.data.childLeft);
+            newNum1 = childLeft.data.Value;
+          }
+      }
+
+      editor.value.updateNodeDataFromId(idNextFather, {
+            Father: nextFather.data.Father,
+            ChildLeft: nextFather.data.ChildLeft,
+            ChildRight: nextFather.data.ChildRight,
+            Value: result
+          });
+        
+      nodesTree.forEach(node => {
+              if (node.id == idNextFather) {
+                  node.value = result;
+              }
+          });
+
+      dispatch("setOperationAction", { id: idNextFather, value: { Number1: newNum1, Number2: newNum2, Result: result } });
+      updateRecursiveArithOp(idNextFather,{ Number1: newNum1, Number2: newNum2, Result: result });
+
+      }
+    }
     };
 
     var mobile_item_selec = "";
@@ -387,10 +505,10 @@ export default {
       switch (name) {
         case 'BinOp':
           arithmeticOp = data.token;
-          editor.value.addNode(arithmeticOp, 2, 1, pos_x, pos_y, arithmeticOp, { Father: null, ChildLeft: null, ChildRight: null, Result: 0 }, arithmeticOp, 'vue');
+          editor.value.addNode(arithmeticOp, 2, 1, pos_x, pos_y, arithmeticOp, { Father: null, ChildLeft: null, ChildRight: null, Value: 0 }, arithmeticOp, 'vue');
           break;
-        case 'Integer':
-          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', { Father: null, Num: 0 }, 'Number', 'vue');
+        case 'Declarative':
+          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', { Father: null, Value: 0 }, 'Number', 'vue');
           break;
         default:
           console.log('no se encontro');
@@ -439,14 +557,16 @@ export default {
 
       editor.value.on('nodeDataChanged', function (id) {
         //actualizar datos heredados a otros nodos
+        console.log('id del nodo que se actualizo',id);
         updateData(id);
+
 
       })
 
 
     });
 
-    return { getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
+    return { updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
 
   }
 

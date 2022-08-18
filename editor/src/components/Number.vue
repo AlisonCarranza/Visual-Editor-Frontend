@@ -32,15 +32,15 @@ export default {
          dataNode.value = editor.value.getNodeFromId(nodeId);
          newNumber.value = e.target.value;
 
-            if (isNaN(parseInt(e.target.value))) { 
+            if (e.target.value==''){//isNaN(parseInt(e.target.value))) { 
               newNumber.value = 0;
               console.log('nan',newNumber.value);
             }
 
-            editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.value.data.Father,Num: parseInt(newNumber.value)});
+            editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.value.data.Father,Value: parseInt(newNumber.value)});
             console.log('editor',editor.value.getNodeFromId(nodeId));
 
-            dispatch("setNumberAction", {id: nodeId.value, value: parseInt(e.target.value)});
+            dispatch("setNumberAction", {id: nodeId, value: parseInt(e.target.value)});
          
          
       };
