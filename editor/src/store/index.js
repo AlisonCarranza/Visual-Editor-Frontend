@@ -4,12 +4,16 @@ const store = createStore({
     state:{
         Numbers:{},
         Operations: {},
+        Variables:{},
+        Assigns:{}
 
     },
     getters:{
         getNumbers: (state) => state.Numbers,
         getNumberbyId: (state) => (id) => state.Numbers[id],
         getOperations: (state) => state.Operations,
+        getVariables: (state) => state.Variables,
+        getAssigns: (state) => state.Assigns,
     },
     mutations:{
         addNumber(state, number) {
@@ -23,6 +27,18 @@ const store = createStore({
          },
          deleteOperation(state, operation) {
             delete state.Operations[operation.id];
+         },
+         addAssign(state, assign) {
+            state.Assigns[assign.id] = assign.value;
+         },
+         deleteAssign(state, assign) {
+            delete state.Assigns[assign.id];
+         },
+         addVariable(state, variable) {
+            state.Variables[variable.id] = variable.value;
+         },
+         deleteVariable(state, variable) {
+            delete state.Variables[variable.id];
          },
 
     },
@@ -38,6 +54,18 @@ const store = createStore({
          },
          deleteOperationAction({commit}, operation) {
             commit("deleteOperation", operation);
+         },
+         setAssignAction({commit}, assign) {
+            commit("addAssign", assign);
+         },
+         deleteAssignAction({commit}, assign) {
+            commit("deleteAssign", assign);
+         },
+         setVariableAction({commit}, variable) {
+            commit("addVariable", variable);
+         },
+         deleteVariableAction({commit}, variable) {
+            commit("deleteVariable", variable);
          }
 
     }

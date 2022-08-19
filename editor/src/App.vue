@@ -119,7 +119,7 @@ export default {
     ]);
 
     var nodesTree = [];
-    var root = null;
+    //var root = null;
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
     const interpreter = () => {
@@ -128,14 +128,7 @@ export default {
 
     //funcion para crear arbol
     const createTree = (idNode) => {
-      console.log(nodesTree);
-      console.log(idNode);
-
       addNode(idNode);
-
-      console.log(root);
-      console.log(nodesTree);
-
     };
 
     //actualizar raiz arbol
@@ -150,11 +143,7 @@ export default {
     };*/
 
     const addNode = (idNode) => {
-      console.log(nodesTree);
-      console.log(idNode);
-
       var node = editor.value.getNodeFromId(idNode);
-      console.log(node);
 
       if (node.name == 'Add' || node.name == 'Sub' || node.name == 'Mul' || node.name == 'Div') {
         nodesTree.push({
@@ -237,6 +226,7 @@ export default {
           console.log('impresion nodo al crear conexion info padre', editor.value.getNodeFromId(node.id));
         }
       });
+      
     };
 
     const getFatherNode = (idNode,idFather) =>{
@@ -257,6 +247,14 @@ export default {
         case 'Number':
           dataNode = {Father:idFather,Value: nodeSelect.data.Value};
           break;
+        case 'Variable':
+          dataNode = { Father:idFather, Variable:nodeSelect.data.Variable, Value:nodeSelect.data.Value};
+          break;
+        case 'Assign':
+          dataNode = {Father:idFather, ChildLeft: nodeSelect.data.ChildLeft, 
+                      ChildRight: nodeSelect.data.ChildRight,
+                      Value: nodeSelect.data.Value};
+          break;
       
         default:
           break;
@@ -275,7 +273,31 @@ export default {
         name = 'BinOp';
       }
       switch (name) {
-        case 'BinOp':{
+        case 'BinOp':
+          console.log('Padre es BinOp');
+          dataNode = putChildsNodeBinOp(idNode,idChild,input);
+          break;
+        case 'Number':
+          console.log('imposible');
+          break;
+        case 'Assign':
+          console.log('Padre es assign');
+          dataNode = putChildsNodeAssign(idNode,idChild,input);
+          break;
+      
+        default:
+          break;
+      }
+
+      return dataNode;
+
+    }
+
+    //funciones para especificar como agregar los hijos segun el tipo de nodo Padre
+    const putChildsNodeBinOp = (idNode,idChild,input) =>{
+          const nodeSelect = editor.value.getNodeFromId(idNode);
+
+          let dataNode = {};
           let num1 = 0;
           let num2 = 0;
           let result = 0;
@@ -283,8 +305,6 @@ export default {
           let Child1 = editor.value.getNodeFromId(idChild);
           let Child2 = null;
           let nodeTree = {childLeft:null,childRight:null};
-          console.log('hijo ',Child1);
-
 
           if (input == 'input_1') {
             //update nodes tree
@@ -317,34 +337,111 @@ export default {
           value: { Number1: num1, Number2: num2, Result: result } });
 
           console.log({ Number1: num1, Number2: num2, Result: result });
-        }
-          break;
-        case 'Number':
-          console.log('imposible');
-          break;
-      
-        default:
-          break;
-      }
-
-      return dataNode;
-
+          return dataNode;
     }
 
-    //actualizar data nodo BinOp cuando se actualiza la data del nodo Number
+    const putChildsNodeAssign = (idNode,idChild,input) =>{
+          const nodeSelect = editor.value.getNodeFromId(idNode);
+          let child = editor.value.getNodeFromId(idChild);
+
+          let dataNode = {};
+          let child1 = null;
+          let child2 = null;
+          let value = 0;
+          let variable = '';
+          
+
+          switch (input) {
+            case 'input_1':
+              child1 = idChild;
+              child2 = nodeSelect.data.ChildRight;
+              variable = child.data.Variable;
+              if (child2!=null) {
+                let brother = editor.value.getNodeFromId(child2);
+                value = brother.data.Value;
+              }
+              break;
+            case 'input_2':
+              child2 = idChild;
+              child1 = nodeSelect.data.ChildLeft;
+              value = child.data.Value;
+              if (child1!=null) {
+                let brother = editor.value.getNodeFromId(child1);
+                variable = brother.data.Variable;
+              }
+              break;
+          
+            default:
+              break;
+          }
+ 
+          dataNode = {Father:nodeSelect.data.Father, 
+                      ChildLeft: child1, 
+                      ChildRight: child2,
+                      Value: value};
+
+          dispatch("setAssignAction", { id:idNode, 
+          value: { Variable:variable, Value: value}});
+
+          console.log({  Variable:variable, Value: value });
+          return dataNode;
+    }
+
+    //actualizar data nodo BinOp/Assign cuando se actualiza la data del nodo Number
     const updateData = (id) => {
       const node = editor.value.getNodeFromId(id);
-      console.log('actualizar data del nodo:wtf');
+      console.log('actualizar data del nodo',node);
       const idFather = node.data.Father;
 
       if (idFather != null) {
-        console.log(node.data.number);
+        switch (node.name) {
+          case 'Number':
+            updateDataNodeNumber(id);
+            break;
+          case 'Variable':
+            updateDataNodeVariable(id);
+            break;
+        
+          default:
+            break;
+        }
+        
+      }
+    }
+
+    const updateDataNodeNumber = (id) => {
+        const node = editor.value.getNodeFromId(id);
+        const idFather = node.data.Father;
+        const Father = editor.value.getNodeFromId(idFather);
+        let name= Father.name;
+
+        if (name == 'Add' || name == 'Sub' || name == 'Mul' || name == 'Div' ) {
+            name = 'BinOp';
+        }
+
+        switch (name) {
+          case 'Assign':
+            updateNodeFatherAssign(id);
+            break;
+          case 'BinOp':
+            updateNodeFatherBinOp(id);
+            break;
+        
+          default:
+            break;
+        }
+
+    }
+
+    const updateNodeFatherBinOp = (id) => {
+        const node = editor.value.getNodeFromId(id);
+        const idFather = node.data.Father;
+        const Father = editor.value.getNodeFromId(idFather);
 
         let num1 = 0;
         let num2 = 0;
         let number = parseInt(node.data.number);
 
-        const Father = editor.value.getNodeFromId(idFather);
         const dataFather = Father.data;
         
         if (node.data.number==''){//isNaN(parseInt(node.data.number))) {
@@ -385,7 +482,61 @@ export default {
         dispatch("setOperationAction", { id: idFather, value: { Number1: num1, Number2: num2, Result: result } });
         updateRecursiveArithOp(idFather,{ Number1: num1, Number2: num2, Result: result });
         console.log('dispath qu', { Number1: num1, Number2: num2, Result: result, Father: dataFather.Father });
-      }
+    }
+
+    const updateNodeFatherAssign = (id) => {
+        const node = editor.value.getNodeFromId(id);
+        const idFather = node.data.Father;
+        const Father = editor.value.getNodeFromId(idFather);
+
+        let number = parseInt(node.data.number);
+
+        const dataFather = Father.data;
+
+        let childVar = editor.value.getNodeFromId(dataFather.ChildLeft);
+        let variable = childVar.data.Variable;
+        
+        if (node.data.number==''){//isNaN(parseInt(node.data.number))) {
+          number = 0;
+        }
+
+        console.log(nodesTree);
+        editor.value.updateNodeDataFromId(idFather, {
+          Father: dataFather.Father,
+          ChildLeft: dataFather.ChildLeft,
+          ChildRight: dataFather.ChildRight,
+          Value: number
+        });
+
+        nodesTree.forEach(node => {
+             if (node.id == idFather) {
+                 node.value = number;
+             }
+        });
+
+        dispatch("setAssignAction", { id: idFather, value: { Variable:variable, Value:number } });
+        console.log('dispath qu', { Variable:variable, Value:number } );
+    }
+
+    const updateDataNodeVariable = (id) => {
+        const node = editor.value.getNodeFromId(id);
+        const idFather = node.data.Father;
+
+        let variable = node.data.variable;
+
+        const Father = editor.value.getNodeFromId(idFather);
+        const dataFather = Father.data;
+
+        editor.value.updateNodeDataFromId(idFather, {
+          Father: dataFather.Father,
+          ChildLeft: dataFather.ChildLeft,
+          ChildRight: dataFather.ChildRight,
+          Value: dataFather.Value
+        });
+
+
+        dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value :dataFather.Value} });
+        console.log('dispath CAMBIA variable',{ Variable: variable, Value :dataFather.Value} );
     }
     
     //calcular operacion aritmetica
@@ -423,7 +574,6 @@ export default {
     
      const nodeFather = editor.value.getNodeFromId(idFather);
      const idNextFather = nodeFather.data.Father;
-     console.log('idNextFather',nodeFather);
 
     if(idNextFather!=null){ 
       const nextFather = editor.value.getNodeFromId(idNextFather);
@@ -432,24 +582,25 @@ export default {
 
       let newNum1 = 0;
       let newNum2 = 0;
-      let result = value.Result;
+      
       console.log('nextFather',nextFather);
       
       if (nextFather.data.ChildLeft == idFather) {
-          newNum1 = value.Number1;
+          newNum1 = value.Result;
           if (nextFather.data.ChildRight != null) {
             let childRight = editor.value.getNodeFromId(nextFather.data.ChildRight);
             newNum2 = childRight.data.Value;
           }
 
       } else if (nextFather.data.ChildRight == idFather) {
-          newNum2 = value.Number2;
+          newNum2 = value.Result;
           if (nextFather.data.childLeft != null) {
             let childLeft = editor.value.getNodeFromId(nextFather.data.childLeft);
             newNum1 = childLeft.data.Value;
           }
       }
-
+      
+      let result = getResultOperation(parseInt(newNum1), parseInt(newNum2), nextFather.name);
       editor.value.updateNodeDataFromId(idNextFather, {
             Father: nextFather.data.Father,
             ChildLeft: nextFather.data.ChildLeft,
@@ -464,6 +615,7 @@ export default {
           });
 
       dispatch("setOperationAction", { id: idNextFather, value: { Number1: newNum1, Number2: newNum2, Result: result } });
+      console.log('dispatch abuelo', { id: idNextFather, value: { Number1: newNum1, Number2: newNum2, Result: result } });
       updateRecursiveArithOp(idNextFather,{ Number1: newNum1, Number2: newNum2, Result: result });
 
       }

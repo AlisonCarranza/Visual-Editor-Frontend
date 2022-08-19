@@ -2,7 +2,7 @@
    <div>
       <h4>Variable</h4>
       <br/>
-      <input class="form-control" type="text" placeholder="Variable" @change="changeVar"/>
+      <input class="form-control" type="text" placeholder="Variable" @change="changeVar" df-variable/>
    </div>
 </template>
 
@@ -23,7 +23,10 @@ export default {
 
       const changeVar = (e) => {
            let dataNode = editor.value.getNodeFromId(nodeId);
-           editor.value.updateNodeDataFromId(nodeId, {Variable:e.target.value, Value: dataNode.data.Value});
+           editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.data.Father,Variable:e.target.value, Value: dataNode.data.Value});
+           console.log('variable',editor.value.getNodeFromId(nodeId));
+
+           //dispatch("setVariableAction", {id: nodeId, value: parseInt(e.target.value)});
         }
       
       onMounted(() => {

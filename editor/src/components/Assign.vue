@@ -5,34 +5,41 @@
       <span
          ><a>Variable</a></span
       >
-      <input class="form-control" type="text" placeholder="Variable"  disabled/>
+      <input class="form-control" type="text" placeholder="Variable"  :value="assign?.Variable" df-variable disabled/>
       <span
          ><a>Value</a></span
       >
-      <input class="form-control" type="input" placeholder="Value"  disabled/>
+      <input class="form-control" type="input" placeholder="Value"    :value="assign?.Value" disabled/>
    </div>
 </template>
 
 <script>
-import { onMounted} from "vue";
+import { onMounted, ref ,getCurrentInstance, computed} from "vue";
+import {useStore} from "vuex";
 
 
 export default {
    name: "AssignVue",
 
    setup() {
-      
-      /*const internalInstance = getCurrentInstance();
+      const internalInstance = getCurrentInstance();
       let editor = internalInstance.appContext.app._context.config.globalProperties.$editor;
-      const nodeId = editor.value.nodeId;*/
+      const nodeId = ref(0);
+      nodeId.value=editor.value.nodeId;
+      console.log('node id',nodeId.value);
 
+      const store = useStore();
+
+      const assign = computed(() => store.state.Assigns[nodeId.value]);
       
       onMounted(() => {
+         console.log(store.state.Assigns);
          
       });
 
-      return { };
-   }
+      return { nodeId , assign };
+
+   },
 };
 </script>
 
