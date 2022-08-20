@@ -392,6 +392,14 @@ export default {
       const node = editor.value.getNodeFromId(id);
       console.log('actualizar data del nodo',node);
       const idFather = node.data.Father;
+      
+          nodesTree.forEach(nodeTree => {
+            if (nodeTree.token == 'Number') {
+              nodeTree.value=parseInt(node.data.number);
+            } else if (nodeTree.token == 'Variable'){
+              nodeTree.variable= node.data.variable;
+            }
+          });         
 
       if (idFather != null) {
         switch (node.name) {
@@ -407,6 +415,7 @@ export default {
         }
         
       }
+      console.log(nodesTree);
     }
 
     const updateDataNodeNumber = (id) => {
@@ -618,7 +627,37 @@ export default {
       console.log('dispatch abuelo', { id: idNextFather, value: { Number1: newNum1, Number2: newNum2, Result: result } });
       updateRecursiveArithOp(idNextFather,{ Number1: newNum1, Number2: newNum2, Result: result });
 
-      }
+      }else if (nextFather.name == 'Assign'){
+        let number = parseInt(value.Result);
+        let variable = '';
+
+        const dataFather = nextFather.data;
+         
+        if (dataFather.ChildLeft!=null) {
+          let childVar = editor.value.getNodeFromId(dataFather.ChildLeft);
+          variable = childVar.data.Variable; 
+        }
+
+        console.log(nodesTree);
+        editor.value.updateNodeDataFromId(idNextFather, {
+          Father: dataFather.Father,
+          ChildLeft: dataFather.ChildLeft,
+          ChildRight: dataFather.ChildRight,
+          Value: number
+        });
+
+       nodesTree.forEach(node => {
+              if (node.id == idNextFather) {
+                  node.value = number;
+              }
+          });
+
+        dispatch("setAssignAction", { id: idNextFather, value: { Variable:variable, Value:number } });
+        console.log('dispath qu', { Variable:variable, Value:number } );
+
+      } 
+        
+      
     }
     };
 
@@ -711,6 +750,7 @@ export default {
 
     const generateCode = () => {
       var exportdata = editor.value.export();
+      console.log('nodetree',nodesTree);
       console.log(exportdata);
     };
 

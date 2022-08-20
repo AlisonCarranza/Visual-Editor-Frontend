@@ -8,13 +8,15 @@
 
 <script>
 import { onMounted,getCurrentInstance  } from "vue";
+import {useStore} from "vuex";
 
 
 export default {
    name: "VariableVue",
 
    setup() {
-      
+      const {dispatch} = useStore();
+
       const internalInstance = getCurrentInstance();
       let editor = internalInstance.appContext.app._context.config.globalProperties.$editor;
       const nodeId = editor.value.nodeId;
@@ -26,7 +28,7 @@ export default {
            editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.data.Father,Variable:e.target.value, Value: dataNode.data.Value});
            console.log('variable',editor.value.getNodeFromId(nodeId));
 
-           //dispatch("setVariableAction", {id: nodeId, value: parseInt(e.target.value)});
+           dispatch("setVariableAction", {id: nodeId, value: e.target.value});
         }
       
       onMounted(() => {
