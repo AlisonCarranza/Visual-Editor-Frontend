@@ -252,8 +252,8 @@ export default {
             Value: childSelect.data.Value
           };
           break;
-
         default:
+          console.log('Tipo de nodo del hijo no permitido:',name);
           break;
       }
 
@@ -281,8 +281,8 @@ export default {
           console.log('Padre es assign');
           dataNode = getDataChildsNodeOfAssign(idFather, idChild, input);
           break;
-
         default:
+          console.log('No permitido',name);
           break;
       }
 
@@ -517,7 +517,6 @@ export default {
       });
 
       dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: number } });
-      console.log('dispath qu', { Variable: variable, Value: number });
     }
 
     const updateDataFatherOfNodeVariable = (id) => {
@@ -536,9 +535,7 @@ export default {
         Value: dataFather.Value
       });
 
-
       dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: dataFather.Value } });
-      console.log('dispath CAMBIA variable', { Variable: variable, Value: dataFather.Value });
     }
 
     //recursividad nodo Operaciones Aritmeticas
@@ -592,8 +589,6 @@ export default {
           console.log('dispath qu', { Variable: variable, Value: number });
 
         }
-
-
       }
     };
 
@@ -717,8 +712,67 @@ export default {
       console.log('nodetree', nodesTree);
       console.log(exportdata);
     };
+// funciones para verificar correctas conexiones entre nodos
+    const evalutedConnection = (connection) =>{
+      const father = editor.value.getNodeFromId(connection.input_id);
+      const child = editor.value.getNodeFromId(connection.output_id);
+      let nameFather = father.name;
+      let nameChild = child.name;
+      let valid = false;
+      let taken = false;
 
+      if (nameFather == 'Add' || nameFather == 'Sub' || nameFather == 'Mul' || nameFather == 'Div') {
+        nameFather = 'BinOp';
+      }
+      if (nameChild == 'Add' || nameChild == 'Sub' || nameChild == 'Mul' || nameChild == 'Div') {
+        nameChild = 'BinOp';
+      }
 
+      switch (nameFather) {
+        case 'BinOp':
+            taken = takenConnection(connection);
+            console.log('taken',!taken);
+            if ((nameChild=='Number' || nameChild == 'BinOp') && !taken) {
+              valid= true
+            }
+          break;
+        case 'Assign':
+            taken = takenConnection(connection);
+            if ((nameChild=='Number' || nameChild == 'BinOp' ) && connection.input_class == 'input_2' && !taken) {
+              valid= true;
+            }else if (nameChild=='Variable'  && connection.input_class == 'input_1') {
+              valid = false;
+            } 
+          break;
+        case 'If':
+          
+          break;
+        case 'For':
+          
+          break;
+      
+        default:
+          break;
+      }
+      return valid;
+    }
+
+    const takenConnection = (connection) => {
+      const father = editor.value.getNodeFromId(connection.input_id);
+      let taken = false;
+
+      if (connection.input_class == 'input_1') {
+         if (father.data.ChildLeft != null) {
+           taken = true;
+         }
+        
+      }else if (connection.input_class == 'input_2') {
+         if (father.data.ChildRight != null) {
+           taken = true;
+         } 
+      }
+      return taken;
+    }
 
     onMounted(() => {
 
@@ -751,8 +805,13 @@ export default {
       editor.value.on('connectionCreated', function (connection) {
         console.log('Connection created');
         console.log(connection);
-
-        updateNode(connection);
+        let connectionValid = evalutedConnection(connection);
+        if (connectionValid) {
+          updateNode(connection);
+        }else{
+          editor.value.removeSingleConnection(connection.output_id,connection.input_id,connection.output_class, connection.input_class);
+          window.alert('conexion no valida');
+        }
       })
 
       editor.value.on('nodeDataChanged', function (id) {
@@ -766,7 +825,7 @@ export default {
 
     });
 
-    return { updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
+    return { evalutedConnection , updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
 
   }
 
