@@ -10,8 +10,11 @@
             <hr />
             <li class="list-group-item">
               <div class="btn-group" role="group" aria-label="Basic example">
-                <button type="button" class="btn btn-primary" id="toggle-btn" v-on:click="generateCode()">
+                <button type="button" class="btn btn-primary" id="toggle-btn1" v-on:click="generateCode()">
                   Generar Codigo
+                </button>
+                <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="getCode()">
+                  Get Codigo
                 </button>
               </div>
             </li>
@@ -43,7 +46,7 @@
 <script>
 import Drawflow from 'drawflow'
 import Swal from 'sweetalert2'
-import { h, getCurrentInstance, render, readonly, onMounted, shallowRef } from 'vue'
+import { h, getCurrentInstance, render, readonly, onMounted, shallowRef, ref } from 'vue'
 
 import NumberVue from './components/Number.vue';
 import BinaryOperations from './components/BinaryOperations.vue';
@@ -121,7 +124,13 @@ export default {
 
     var nodesTree = [];
     //var root = null;
-    var Code = '';
+
+    //variables en las que se almacenan las respuesta del servidor
+    const pythonCode = ref("");
+    const resultProgram = ref("");
+    const listPrograms = ref({});
+    //api url
+    const apiUrl= ref("http://localhost:3000");
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
     const interpreter = () => {
@@ -132,9 +141,8 @@ export default {
         }
       });
 
-      Code = null;
-      Code = visitNodePostOrden(idRoot);
-      console.log('CODIGO OBTENIDO:',Code);
+      pythonCode.value = visitNodePostOrden(idRoot);
+      console.log('CODIGO OBTENIDO:',pythonCode.value);
     };
 
     const visitNodePostOrden = (idRoot) => {
@@ -773,7 +781,104 @@ export default {
       console.log('nodetree', nodesTree);
       console.log(Object.values(exportdata.drawflow.Home.data));
       interpreter();
+
+      //Ventana Modal visualizacion code
+      openModalCode();
     };
+
+    const openModalCode = () =>{
+      Swal.fire({
+        input: 'textarea',
+        inputLabel: 'Sintaxis Python Code',
+        inputValue:pythonCode.value,
+        inputPlaceholder: 'Type your message here...',
+        inputAttributes: {
+          'aria-label': 'Type your message here',
+          'disabled':true,
+        },
+        showClass: {
+          popup: 'animate__animated animate__fadeInDown'
+        },
+        hideClass: {
+          popup: 'animate__animated animate__fadeOutUp'
+        },
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'Save',
+        denyButtonText: `Run`,
+      }).then((result) => {
+        /* Read more about isConfirmed, isDenied below */
+        if (result.isConfirmed) {
+          addProgram();
+        } else if (result.isDenied) {
+          runProgram();
+          openModalRun();
+        }
+      })
+    }
+
+    const openModalRun = () =>{
+      Swal.fire({
+        input: 'textarea',
+        inputLabel: 'Shell',
+        inputValue:resultProgram.value,
+        inputPlaceholder: 'Type your message here...',
+        inputAttributes: {
+          'aria-label': 'Type your message here',
+          'disabled':true,
+        },
+        showClass: {
+          popup: 'animate__animated animate__fadeInDown'
+        },
+        hideClass: {
+          popup: 'animate__animated animate__fadeOutUp'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Back',
+      }).then((result) => {
+        /* Read more about isConfirmed, isDenied below */
+        if (result.isConfirmed) {
+          openModalCode();
+        }
+      })
+    }
+
+    const getCode = async () => {
+      getPrograms();
+      let lista=[];
+      listPrograms.value.forEach(program => {
+        lista.push(program.uid);
+      });
+
+      const options = Object.assign({}, lista);
+
+      const { value: program } = await Swal.fire({
+      title: 'Select Program',
+      input: 'select',
+      inputOptions: options,
+      inputPlaceholder: 'Select a fruit',
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return 'You need to choose something!'
+        }
+      }
+      })
+      if (program) {
+        //setCode(program);
+        Swal.fire(`You selected: ${program}`)
+        Swal.fire({
+          title: `You selected: ${program}`,
+          showCancelButton: true,
+          confirmButtonText: 'Code',
+        }).then((result) => {
+          /* Read more about isConfirmed, isDenied below */
+          if (result.isConfirmed) {
+            openModalCode();
+          }
+        })
+      }
+    }
 // funciones para verificar correctas conexiones entre nodos
     const evalutedConnection = (connection) =>{
       const father = editor.value.getNodeFromId(connection.input_id);
@@ -835,6 +940,86 @@ export default {
       return taken;
     }
 
+//request
+    //GET
+    const getPrograms = async () => {
+      listPrograms.value = [{uid:'orange',Code:'hola'}];
+      try {
+        const requestOptions = {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        };
+        const response = await fetch(
+          apiUrl.value + "/programs",
+          requestOptions
+        );
+        const json = await response.json();
+        console.log(json);
+        listPrograms.value = json.queryAllPrograms;
+
+        Swal.fire({
+          position: "center",
+          icon: "success",
+          title: "listNodes cargada exitosamente!!",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+      } catch (err) {
+        console.log("get", err);
+      }
+    };
+    //POST
+    const addProgram  = async () => {
+      try {
+        const requestOptions = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ Code: [pythonCode.value] }),
+        };
+        console.log({ Code: [pythonCode.value] });
+        await fetch( apiUrl.value + "/programs", requestOptions);
+        Swal.fire({
+          position: "center",
+          icon: "success",
+          title: "Program Saved",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+      } catch (err) {
+        console.log("add", err);
+        Swal.fire('No se pudo guardar!!', '', 'error')
+      }
+    };
+  
+    //ejecutar codigo
+    const runProgram = async () =>{
+      resultProgram.value='hola';
+      try {
+        const requestOptions = {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ Code: [pythonCode.value] }),
+        };
+        const response = await fetch(
+          apiUrl.value + "/run/program",
+          requestOptions
+        );
+        const data = await response.json();
+        console.log(data);
+        resultProgram.value = data;
+      } catch (err) {
+        console.log("run", err);
+        //Swal.fire('No se pudo correr el Programa!!', '', 'error')
+      }
+    };
+
+    //cargar listNodes de progrmas en el select
+    /*const setCode = (uid) => {
+      const code = listPrograms.value.find((x) => x.uid == uid);
+      console.log(code)
+      pythonCode.value = code.Code[0];
+    };*/
+
     onMounted(() => {
 
       var id = document.getElementById("drawflow");
@@ -890,7 +1075,7 @@ export default {
 
     });
 
-    return { evalutedConnection , updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
+    return { evalutedConnection , updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, getCode, interpreter, createTree, addNode, updateNode, updateData };
 
   }
 
