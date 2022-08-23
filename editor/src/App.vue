@@ -42,6 +42,7 @@
 
 <script>
 import Drawflow from 'drawflow'
+import Swal from 'sweetalert2'
 import { h, getCurrentInstance, render, readonly, onMounted, shallowRef } from 'vue'
 
 import NumberVue from './components/Number.vue';
@@ -120,10 +121,61 @@ export default {
 
     var nodesTree = [];
     //var root = null;
+    var Code = '';
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
     const interpreter = () => {
-      console.log('interpretador');
+      let idRoot = 0;
+      nodesTree.forEach(node => {
+        if (node.father==null) {
+          idRoot = node.id
+        }
+      });
+
+      Code = null;
+      Code = visitNodePostOrden(idRoot);
+      console.log('CODIGO OBTENIDO:',Code);
+    };
+
+    const visitNodePostOrden = (idRoot) => {
+        let value1 = '0';
+        let value2 = '0';
+        let code = '';
+
+        let nodeRoot = {};
+        nodesTree.forEach(node => {
+          if (node.id==idRoot) {
+            nodeRoot=node;
+          }
+        });
+
+        if (nodeRoot.childLeft!=null) {
+          value1 = visitNodePostOrden(nodeRoot.childLeft);
+        }
+
+        if (nodeRoot.childRight!=null) {
+          value2 = visitNodePostOrden(nodeRoot.childRight);
+        }
+
+        switch (nodeRoot.expression) {
+          case 'BinOp':
+            code = '('+value1+' '+ nodeRoot.operador+' '+value2+')';
+            break;
+          case 'Assign':
+            code = +value1+' '+ nodeRoot.operador+' '+value2;
+            break;
+          case 'Declarative':
+             code = nodeRoot.value;
+            break;
+          case 'Variable':
+             code = nodeRoot.variable;
+            break;
+          default:
+            break;
+        }
+       
+        return code;
+       
     };
 
     //funcion para crear arbol
@@ -144,6 +196,12 @@ export default {
 
     const addNode = (idNode) => {
       var node = editor.value.getNodeFromId(idNode);
+      var op = '';
+      lista.forEach(nodeType => {
+        if (nodeType.token == node.name) {
+          op = nodeType.operador;
+        }
+      });
 
       if (node.name == 'Add' || node.name == 'Sub' || node.name == 'Mul' || node.name == 'Div') {
         nodesTree.push({
@@ -152,6 +210,7 @@ export default {
           father: null,
           expression: 'BinOp',
           value: 0,
+          operador:op,
           childLeft: null,
           childRight: null
         });
@@ -175,6 +234,7 @@ export default {
               father: null,
               expression: "Assign",
               value: 0,
+              operador:op,
               childLeft: null,
               childRight: null
             });
@@ -197,9 +257,6 @@ export default {
         }
 
       }
-
-      console.log(nodesTree);
-
     };
 
     //cargar conecciones en ambos nodos
@@ -346,8 +403,6 @@ export default {
                       ChildRight:fatherSelect.data.ChildRight, 
                       Value:result};
 
-      console.log('resultado',result);
-
       dispatch("setOperationAction", {
         id: idFather,
         value: { Number1: num1, Number2: num2, Result: result }
@@ -413,15 +468,8 @@ export default {
       const node = editor.value.getNodeFromId(id);
       console.log('actualizar data del nodo', node);
       const idFather = node.data.Father;
-
-      nodesTree.forEach(nodeTree => {
-        if (nodeTree.token == 'Number') {
-          nodeTree.value = parseInt(node.data.number);
-        } else if (nodeTree.token == 'Variable') {
-          nodeTree.variable = node.data.variable;
-        }
-      });
-
+      
+      
       if (idFather != null) {
         switch (node.name) {
           case 'Number':
@@ -434,9 +482,22 @@ export default {
           default:
             break;
         }
-
       }
-      console.log(nodesTree);
+
+      nodesTree.forEach(nodeTree => {
+          if (nodeTree.id == id) {
+            switch (nodeTree.token) {
+              case 'Number':
+                nodeTree.value = parseInt(node.data.number);
+                break;
+              case 'Variable':
+                nodeTree.variable = node.data.variable;
+                break;
+              default:
+                break;
+            }
+          }
+      });
     }
 
     const updateDataFatherOfNodeNumber = (id) => {
@@ -482,7 +543,7 @@ export default {
           node.value = dataNode.Value;
         }
       });
-      console.log('udate que pasa',dataNode);
+      
       updateRecursiveArithOp(idFather, dataNode.Value);
     }
 
@@ -492,17 +553,18 @@ export default {
       const Father = editor.value.getNodeFromId(idFather);
 
       let number = parseInt(node.data.number);
-
-      const dataFather = Father.data;
-
-      let childVar = editor.value.getNodeFromId(dataFather.ChildLeft);
-      let variable = childVar.data.Variable;
-
       if (node.data.number == '') {//isNaN(parseInt(node.data.number))) {
         number = 0;
       }
 
-      console.log(nodesTree);
+      const dataFather = Father.data;
+
+      let variable = '';
+      if (dataFather.ChildLeft != null) {//isNaN(parseInt(node.data.number))) {
+        let childVar = editor.value.getNodeFromId(dataFather.ChildLeft);
+        variable = childVar.data.Variable;
+      }
+
       editor.value.updateNodeDataFromId(idFather, {
         Father: dataFather.Father,
         ChildLeft: dataFather.ChildLeft,
@@ -515,7 +577,6 @@ export default {
           node.value = number;
         }
       });
-
       dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: number } });
     }
 
@@ -536,6 +597,7 @@ export default {
       });
 
       dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: dataFather.Value } });
+      
     }
 
     //recursividad nodo Operaciones Aritmeticas
@@ -571,7 +633,7 @@ export default {
             variable = childVar.data.Variable;
           }
 
-          console.log(nodesTree);
+          
           editor.value.updateNodeDataFromId(idNextFather, {
             Father: dataFather.Father,
             ChildLeft: dataFather.ChildLeft,
@@ -684,7 +746,6 @@ export default {
           data = nodeType;
           name = nodeType.expression;
         }
-
       });
       switch (name) {
         case 'BinOp':
@@ -710,7 +771,8 @@ export default {
     const generateCode = () => {
       var exportdata = editor.value.export();
       console.log('nodetree', nodesTree);
-      console.log(exportdata);
+      console.log(Object.values(exportdata.drawflow.Home.data));
+      interpreter();
     };
 // funciones para verificar correctas conexiones entre nodos
     const evalutedConnection = (connection) =>{
@@ -731,7 +793,6 @@ export default {
       switch (nameFather) {
         case 'BinOp':
             taken = takenConnection(connection);
-            console.log('taken',!taken);
             if ((nameChild=='Number' || nameChild == 'BinOp') && !taken) {
               valid= true
             }
@@ -740,8 +801,8 @@ export default {
             taken = takenConnection(connection);
             if ((nameChild=='Number' || nameChild == 'BinOp' ) && connection.input_class == 'input_2' && !taken) {
               valid= true;
-            }else if (nameChild=='Variable'  && connection.input_class == 'input_1') {
-              valid = false;
+            }else if (nameChild=='Variable'  && connection.input_class == 'input_1' && !taken) {
+              valid = true;
             } 
           break;
         case 'If':
@@ -810,7 +871,11 @@ export default {
           updateNode(connection);
         }else{
           editor.value.removeSingleConnection(connection.output_id,connection.input_id,connection.output_class, connection.input_class);
-          window.alert('conexion no valida');
+          Swal.fire({ title: 'Warning!',
+                      text: 'Conexion no valida',
+                      icon: 'warning',
+                      confirmButtonText: 'Ok'
+                    });
         }
       })
 
