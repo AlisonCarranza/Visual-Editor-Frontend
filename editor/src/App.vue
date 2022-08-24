@@ -1,7 +1,6 @@
 <template>
 
   <div id="app">
-
     <div class="container cuerpo">
       <div class="row">
         <div class="col-3">
@@ -52,15 +51,16 @@ import NumberVue from './components/Number.vue';
 import BinaryOperations from './components/BinaryOperations.vue';
 import VariableVue from './components/Variable.vue';
 import AssignVue from './components/Assign.vue';
+import IfVue from './components/If.vue';
+import ForVue from './components/For.vue';
 
 //vuex
 import { useStore } from "vuex";
 
-
 export default {
   name: 'App',
   components: {
-
+     
   },
 
   setup() {
@@ -73,6 +73,7 @@ export default {
 
     //acceso a store para manejar estados
     const { dispatch } = useStore();
+
 
     const lista = readonly([
       {
@@ -119,7 +120,16 @@ export default {
         operador: '-',
         left: null,
         right: null,
-      }
+      },
+      {
+        expression: "If",
+        token: "If",
+      },
+      {
+        expression: "For",
+        token: "For",
+      },
+
     ]);
 
     var nodesTree = [];
@@ -259,6 +269,29 @@ export default {
             });
 
             break;
+          case 'If':
+            nodesTree.push({
+              id: node.id,
+              token: node.name,
+              father: null,
+              expression: "If",
+              condicion: null,
+              childLeft: null,
+              childRight: null,
+            });
+            break;
+          case 'For':
+            nodesTree.push({
+              id: node.id,
+              token: node.name,
+              father: null,
+              expression: "For",
+              range: null,
+              childLeft: null,
+              childRight: null,
+            });
+
+            break;
 
           default:
             break;
@@ -317,6 +350,18 @@ export default {
             Value: childSelect.data.Value
           };
           break;
+        case 'If':
+          dataNode = {
+            Father: idFather, ChildLeft: childSelect.data.ChildLeft, ChildRight: childSelect.data.ChildRight,
+            Operator: childSelect.data.Operator, Expr1:childSelect.data.Expr1, Expr2:childSelect.data.Expr2,
+          };
+          break;
+        case 'For':
+          dataNode = {
+            Father: idFather, ChildLeft: childSelect.data.ChildLeft, ChildRight: childSelect.data.ChildRight,
+            Start:childSelect.data.Start, Finish:childSelect.data.Finish,
+          };
+          break;
         default:
           console.log('Tipo de nodo del hijo no permitido:',name);
           break;
@@ -345,6 +390,14 @@ export default {
         case 'Assign':
           console.log('Padre es assign');
           dataNode = getDataChildsNodeOfAssign(idFather, idChild, input);
+          break;
+        case 'If':
+          console.log('Padre es If');
+          dataNode = {};
+          break;
+        case 'For':
+          console.log('Padre es For');
+          dataNode = {};
           break;
         default:
           console.log('No permitido',name);
@@ -769,6 +822,12 @@ export default {
         case 'Variable':
           editor.value.addNode('Variable', 0, 1, pos_x, pos_y, 'Variable', { Father: null, Variable: '', Value: 0 }, 'Variable', 'vue');
           break;
+        case 'If':
+          editor.value.addNode('If', 2, 1, pos_x, pos_y, 'If', { Father: null,ChildLeft: null, ChildRight: null, Operator:'',Expr1:0, Expr2:0 }, 'If', 'vue');
+          break;
+        case 'For':
+          editor.value.addNode('For', 1, 1, pos_x, pos_y, 'For', { Father: null, ChildLeft: null, ChildRight: null, Start: 0, Finish: 0 }, 'For', 'vue');
+          break;
         default:
           console.log('no se encontro');
           break;
@@ -791,9 +850,9 @@ export default {
         input: 'textarea',
         inputLabel: 'Sintaxis Python Code',
         inputValue:pythonCode.value,
-        inputPlaceholder: 'Type your message here...',
+        inputPlaceholder: 'Code here...',
         inputAttributes: {
-          'aria-label': 'Type your message here',
+          'aria-label': 'Code here',
           'disabled':true,
         },
         showClass: {
@@ -805,9 +864,9 @@ export default {
         showDenyButton: true,
         showCancelButton: true,
         confirmButtonText: 'Save',
-        denyButtonText: `Run`,
+        denyButtonText: `Run`
       }).then((result) => {
-        /* Read more about isConfirmed, isDenied below */
+        
         if (result.isConfirmed) {
           addProgram();
         } else if (result.isDenied) {
@@ -1039,6 +1098,8 @@ export default {
 
       editor.value.registerNode('Variable', VariableVue, {}, {}, 'vue');
       editor.value.registerNode('Assign', AssignVue, {}, {}, 'vue');
+      editor.value.registerNode('If', IfVue, {}, {}, 'vue');
+      editor.value.registerNode('For', ForVue, {}, {}, 'vue');
 
 
       // Events! saltan cuando sean manipulados los nodos
@@ -1068,14 +1129,12 @@ export default {
         //actualizar datos heredados a otros nodos
         console.log('id del nodo que se actualizo', id);
         updateData(id);
-
-
       })
 
 
     });
 
-    return { evalutedConnection , updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, getCode, interpreter, createTree, addNode, updateNode, updateData };
+    return {pythonCode, evalutedConnection , updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, getCode, interpreter, createTree, addNode, updateNode, updateData };
 
   }
 
@@ -1164,5 +1223,11 @@ export default {
 .drawflow .drawflow-node .drawflow_content_node .el-select,
 .drawflow .drawflow-node .drawflow_content_node button {
   width: 100%;
+}
+
+.swal2-textarea {
+    height: 6.75em;
+    padding: .75em;
+    background-color: #282c34;
 }
 </style>

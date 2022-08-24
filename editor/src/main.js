@@ -7,4 +7,5 @@ import styleDrawflow from 'drawflow/dist/drawflow.min.css';
 import 'animate.css';
 
 
+
 createApp(App, styleDrawflow, Bootstrap).use(store).mount('#app')

@@ -12,7 +12,7 @@
 /*eslint-disable */
 import {getCurrentInstance, ref, onMounted} from "vue";
 export default {
-    name: 'For',
+    name: 'ForVue',
     setup() {
         const expr1 = ref(0);
         const expr2 = ref(0);
@@ -21,8 +21,13 @@ export default {
         let editor = internalInstance.appContext.app._context.config.globalProperties.$editor;
         const nodeId = editor.value.nodeId;
 
-        const changeExpr = (e) => {
-           editorRef.updateNodeDataFromId(nodeId.value,  {Start:expr1.value,Finish:expr2.value});
+        const changeExpr = () => {
+           let node = editor.value.getNodeFromId(nodeId);
+
+           editor.value.updateNodeDataFromId(nodeId,
+           {Father:node.data.Father, ChildLeft:node.data.ChildLeft, ChildRight: node.data.ChildRight,
+            Start:expr1.value, Finish:expr2.value});
+           console.log(editor.value.getNodeFromId(nodeId));
         };
 
         onMounted(() => {

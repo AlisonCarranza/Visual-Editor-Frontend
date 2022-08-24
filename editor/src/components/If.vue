@@ -24,7 +24,7 @@
 <script>
 import {getCurrentInstance, ref, onMounted} from "vue";
 export default {
-    name: 'If',
+    name: 'IfVue',
     setup() {
         const expr1 = ref(0);
         const expr2 = ref(0);
@@ -35,8 +35,13 @@ export default {
         let editor = internalInstance.appContext.app._context.config.globalProperties.$editor;
         const nodeId = editor.value.nodeId;
 
-        const changeExpr = (e) => {
-             editor.value.updateNodeDataFromId(nodeId,  {Expression1:expr1.value,Operator:operator.value,Expression2:expr2.value});
+        const changeExpr = () => {
+             let node = editor.value.getNodeFromId(nodeId);
+             editor.value.updateNodeDataFromId(nodeId,
+             {Father:node.data.Father, ChildLeft:node.data.ChildLeft, ChildRight: node.data.ChildRight,
+             Expr1:expr1.value, Operator:operator.value, Expr2:expr2.value});
+
+             console.log(editor.value.getNodeFromId(nodeId)); 
         }
     onMounted(() => {
          
