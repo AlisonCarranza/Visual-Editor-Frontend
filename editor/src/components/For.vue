@@ -2,9 +2,9 @@
     <div>
         <h4 class="text-2xl">For</h4>
        <span><a>Valor Inicial</a></span>
-        <input class="form-control" type="number" v-model="expr1"  @change="changeExpr"/>
+        <input class="form-control" type="number" v-model="expr1"  @change="changeExpr" @keyup="changeExpr"/>
         <span><a>Valor Final</a></span>
-        <input class="form-control" type="number"  v-model="expr2" @change="changeExpr"/>
+        <input class="form-control" type="number"  v-model="expr2" @change="changeExpr" @keyup="changeExpr"/>
     </div>
 </template>
  

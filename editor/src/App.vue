@@ -188,6 +188,14 @@ export default {
           case 'Variable':
              code = nodeRoot.variable;
             break;
+          case 'If':
+             nodeRoot = editor.value.getNodeFromId(idRoot);
+             code = 'If'+' '+nodeRoot.data.Expr1+' '+nodeRoot.data.Operator+' '+nodeRoot.data.Expr2+' '+':\n\t'+value1;
+            break;
+          case 'For':
+             nodeRoot = editor.value.getNodeFromId(idRoot);
+             code = 'For i in range( '+nodeRoot.data.Start+' ,'+nodeRoot.data.Finish+'):\n\t'+value1;
+            break;
           default:
             break;
         }
@@ -275,7 +283,7 @@ export default {
               token: node.name,
               father: null,
               expression: "If",
-              condicion: null,
+              value: null,
               childLeft: null,
               childRight: null,
             });
@@ -286,7 +294,7 @@ export default {
               token: node.name,
               father: null,
               expression: "For",
-              range: null,
+              value: null,
               childLeft: null,
               childRight: null,
             });
@@ -391,10 +399,21 @@ export default {
           console.log('Padre es assign');
           dataNode = getDataChildsNodeOfAssign(idFather, idChild, input);
           break;
-        case 'If':
+        case 'If':{ 
           console.log('Padre es If');
-          dataNode = {};
+          let father = editor.value.getNodeFromId(idFather);
+          let child1 = father.data.ChildLeft;
+          let child2 = idChild;
+          if (input == 'input_1') {
+             child2 = father.data.ChildRight;
+             child1 = idChild;
+          }
+          dataNode = {Father:father.data.Father, ChildLeft:child1, ChildRight: child2,
+             Expr1:father.data.Expr1, Operator:father.data.Operator, Expr2:father.data.Expr2,
+            Value:''};
+          
           break;
+          }
         case 'For':
           console.log('Padre es For');
           dataNode = {};
@@ -552,6 +571,12 @@ export default {
                 nodeTree.value = parseInt(node.data.number);
                 break;
               case 'Variable':
+                nodeTree.variable = node.data.variable;
+                break;
+              case 'If':
+                nodeTree.value = node.data.Expr1+' '+node.data.Operator+' '+node.data.Expr2;
+                break;
+              case 'For':
                 nodeTree.variable = node.data.variable;
                 break;
               default:
@@ -970,10 +995,17 @@ export default {
             } 
           break;
         case 'If':
-          
+             taken = takenConnection(connection);
+            if ((nameChild!='Else') && connection.input_class == 'input_1' && !taken) {
+              valid= true;
+            }else if (nameChild=='Else'  && connection.input_class == 'input_2' && !taken) {
+              valid = true;
+            } 
           break;
         case 'For':
-          
+              if (!taken) {
+                valid = true;
+              }
           break;
       
         default:
