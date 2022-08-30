@@ -9,7 +9,7 @@
       <span
          ><a>Value</a></span
       >
-      <input class="form-control" type="input" placeholder="Value"    :value="assign?.Value" disabled/>
+      <input class="form-control" type="input" placeholder="Value"    :value="assign?.Value" df-value disabled/>
    </div>
 </template>
 

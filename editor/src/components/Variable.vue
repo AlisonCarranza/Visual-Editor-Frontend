@@ -2,7 +2,7 @@
    <div>
       <h4>Variable</h4>
       <br/>
-      <input class="form-control" type="text" placeholder="Variable" @change="changeVar" df-variable/>
+      <input class="form-control" type="text" placeholder="Variable" @change="changeVar" @keyup="changeVar" df-variable/>
    </div>
 </template>
 

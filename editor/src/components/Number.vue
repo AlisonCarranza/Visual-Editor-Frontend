@@ -2,7 +2,7 @@
          <div>
             <h4>Number</h4>
             <h5>Valor : {{newNumber}}</h5>
-            <input class="form-control" type="number" @change="updateNewNumber" placeholder="Numero" df-number required />
+            <input class="form-control" type="number" @change="updateNewNumber" @keyup="updateNewNumber" placeholder="Numero" df-number required />
           </div>
    
 </template>

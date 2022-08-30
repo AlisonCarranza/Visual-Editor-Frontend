@@ -53,6 +53,7 @@ import VariableVue from './components/Variable.vue';
 import AssignVue from './components/Assign.vue';
 import IfVue from './components/If.vue';
 import ForVue from './components/For.vue';
+import BlockVue from './components/Block.vue';
 
 //vuex
 import { useStore } from "vuex";
@@ -60,7 +61,7 @@ import { useStore } from "vuex";
 export default {
   name: 'App',
   components: {
-     
+
   },
 
   setup() {
@@ -76,6 +77,11 @@ export default {
 
 
     const lista = readonly([
+      {
+        expression: "Block",
+        token: "Block",
+        value: null,
+      },
       {
         expression: "Declarative",
         token: "Number",
@@ -140,85 +146,79 @@ export default {
     const resultProgram = ref("");
     const listPrograms = ref({});
     //api url
-    const apiUrl= ref("http://localhost:3000");
+    const apiUrl = ref("http://localhost:3000");
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
     const interpreter = () => {
       let idRoot = 0;
       nodesTree.forEach(node => {
-        if (node.father==null) {
+        if (node.father == null) {
           idRoot = node.id
         }
       });
-
+      console.log('a ver raiz',idRoot);
       pythonCode.value = visitNodePostOrden(idRoot);
-      console.log('CODIGO OBTENIDO:',pythonCode.value);
+      console.log('CODIGO OBTENIDO:', pythonCode.value);
     };
 
     const visitNodePostOrden = (idRoot) => {
-        let value1 = '0';
-        let value2 = '0';
-        let code = '';
+      let value1 = '0';
+      let value2 = '0';
+      let code = '';
 
-        let nodeRoot = {};
-        nodesTree.forEach(node => {
-          if (node.id==idRoot) {
-            nodeRoot=node;
-          }
+      let nodeRoot = getNodeFromNodesTree(idRoot);
+      if (nodeRoot.token == 'Block') {
+        console.log('entro',nodeRoot);
+        value1='';
+        nodeRoot.childs.forEach(child => {
+          value1= value1+'\t'+visitNodePostOrden(child.idChild)+'\n'
+          //value1 = value1+'\t'+child.idChild+'\n';
         });
-
-        if (nodeRoot.childLeft!=null) {
+      }else{ 
+        if (nodeRoot.childLeft != null) {
           value1 = visitNodePostOrden(nodeRoot.childLeft);
         }
-
-        if (nodeRoot.childRight!=null) {
+        if (nodeRoot.childRight != null) {
           value2 = visitNodePostOrden(nodeRoot.childRight);
         }
+      }
 
-        switch (nodeRoot.expression) {
-          case 'BinOp':
-            code = '('+value1+' '+ nodeRoot.operador+' '+value2+')';
-            break;
-          case 'Assign':
-            code = +value1+' '+ nodeRoot.operador+' '+value2;
-            break;
-          case 'Declarative':
-             code = nodeRoot.value;
-            break;
-          case 'Variable':
-             code = nodeRoot.variable;
-            break;
-          case 'If':
-             nodeRoot = editor.value.getNodeFromId(idRoot);
-             code = 'If'+' '+nodeRoot.data.Expr1+' '+nodeRoot.data.Operator+' '+nodeRoot.data.Expr2+' '+':\n\t'+value1;
-            break;
-          case 'For':
-             nodeRoot = editor.value.getNodeFromId(idRoot);
-             code = 'For i in range( '+nodeRoot.data.Start+' ,'+nodeRoot.data.Finish+'):\n\t'+value1;
-            break;
-          default:
-            break;
-        }
-       
-        return code;
-       
+      switch (nodeRoot.expression) {
+        case 'BinOp':
+          code = '(' + value1 + ' ' + nodeRoot.operador + ' ' + value2 + ')';
+          break;
+        case 'Assign':
+          code = value1 + ' ' + nodeRoot.operador + ' ' + value2;
+          break;
+        case 'Declarative':
+          code = nodeRoot.value;
+          break;
+        case 'Variable':
+          code = nodeRoot.variable;
+          break;
+        case 'If':
+          nodeRoot = editor.value.getNodeFromId(idRoot);
+          code = 'If' + ' ' + nodeRoot.data.Expr1 + ' ' + nodeRoot.data.Operator + ' ' + nodeRoot.data.Expr2 + ' ' + ':\n\t' + value1;
+          break;
+        case 'For':
+          nodeRoot = editor.value.getNodeFromId(idRoot);
+          code = 'For i in range( ' + nodeRoot.data.Start + ' ,' + nodeRoot.data.Finish + '):\n\t' + value1;
+          break;
+        case 'Block':
+          code = value1;
+          break;
+        default:
+          break;
+      }
+
+      return code;
+
     };
 
     //funcion para crear arbol
     const createTree = (idNode) => {
       addNode(idNode);
     };
-
-    //actualizar raiz arbol
-    /*const foundRoot = () => {
-      nodesTree.forEach(node => {
-        if(node.nodeFather==null){
-           root = node.id;
-           console.log("root tree:",root);
-        }
-      });
-
-    };*/
 
     const addNode = (idNode) => {
       var node = editor.value.getNodeFromId(idNode);
@@ -236,7 +236,7 @@ export default {
           father: null,
           expression: 'BinOp',
           value: 0,
-          operador:op,
+          operador: op,
           childLeft: null,
           childRight: null
         });
@@ -260,7 +260,7 @@ export default {
               father: null,
               expression: "Assign",
               value: 0,
-              operador:op,
+              operador: op,
               childLeft: null,
               childRight: null
             });
@@ -298,8 +298,17 @@ export default {
               childLeft: null,
               childRight: null,
             });
-
-            break;
+          break;
+          case 'Block':
+            nodesTree.push({
+              id: node.id,
+              token: node.name,
+              father: null,
+              expression: "Block",
+              value: null,
+              childs: [ ],
+            });
+          break;
 
           default:
             break;
@@ -307,6 +316,37 @@ export default {
 
       }
     };
+    //remove 
+    const deleteNode = (id) => {
+      nodesTree.forEach((node, index) => {
+        if (node.id == id) {//eliminar el padre al hijo
+          nodesTree.splice(index, 1);
+        } else if (node.father == id) {
+          node.father = null;
+        } else if (node.childLeft == id) {
+          node.childLeft = null;
+        } else if (node.childRight == id) {
+          node.childRight = null;
+        }
+      });
+
+    }
+
+    const deleteConnection = (connection) => {
+      console.log(connection);
+    }
+
+    const getNodeFromNodesTree = (id) => {
+      let nodeSelect = {};
+      nodesTree.forEach(node => {
+        if (node.id == id) {
+          nodeSelect = node;
+        }
+      });
+
+      return nodeSelect;
+    }
+
 
     //cargar conecciones en ambos nodos
     const updateNode = (connection) => {
@@ -318,16 +358,23 @@ export default {
           node.father = connection.input_id;
 
         } else if (connection.input_id == node.id) { //agregar los hijos al padre
-          let dataNodeFather = getDataChildsNode(node.id, connection.output_id, connection.input_class);
-          editor.value.updateNodeDataFromId(node.id, dataNodeFather);
-          node.childLeft = dataNodeFather.ChildLeft;
-          node.childRight = dataNodeFather.ChildRight;
-          node.value = dataNodeFather.Value;
+          if (node.token!='Block') {
+            let dataNodeFather = getDataChildsNode(node.id, connection.output_id, connection.input_class);
+            editor.value.updateNodeDataFromId(node.id, dataNodeFather);
+            node.childLeft = dataNodeFather.ChildLeft;
+            node.childRight = dataNodeFather.ChildRight;
+            node.value = dataNodeFather.Value;
+          } else {
+            node.childs.push({
+              inputId:connection.input_class,
+              idChild:connection.output_id,
+            });
+          }
 
         }
       });
 
-    };
+    };//yala
 
     const getDataFatherNode = (idChild, idFather) => {
       const childSelect = editor.value.getNodeFromId(idChild);
@@ -339,45 +386,37 @@ export default {
       }
       switch (name) {
         case 'BinOp':
-          dataNode = {
-            Father: idFather, ChildLeft: childSelect.data.ChildLeft,
-            ChildRight: childSelect.data.ChildRight,
-            Value: childSelect.data.Value
-          };
+          dataNode = {Value: childSelect.data.Value};
           break;
         case 'Number':
-          dataNode = { Father: idFather, Value: childSelect.data.Value };
+          dataNode = { Value: childSelect.data.Value };
           break;
         case 'Variable':
-          dataNode = { Father: idFather, Variable: childSelect.data.Variable, Value: childSelect.data.Value };
+          dataNode = { Variable: childSelect.data.Variable, Value: childSelect.data.Value };
           break;
         case 'Assign':
-          dataNode = {
-            Father: idFather, ChildLeft: childSelect.data.ChildLeft,
-            ChildRight: childSelect.data.ChildRight,
-            Value: childSelect.data.Value
-          };
+          dataNode = {Value: childSelect.data.Value};
           break;
         case 'If':
           dataNode = {
             Father: idFather, ChildLeft: childSelect.data.ChildLeft, ChildRight: childSelect.data.ChildRight,
-            Operator: childSelect.data.Operator, Expr1:childSelect.data.Expr1, Expr2:childSelect.data.Expr2,
+            Operator: childSelect.data.Operator, Expr1: childSelect.data.Expr1, Expr2: childSelect.data.Expr2,
           };
           break;
         case 'For':
           dataNode = {
             Father: idFather, ChildLeft: childSelect.data.ChildLeft, ChildRight: childSelect.data.ChildRight,
-            Start:childSelect.data.Start, Finish:childSelect.data.Finish,
+            Start: childSelect.data.Start, Finish: childSelect.data.Finish,
           };
           break;
         default:
-          console.log('Tipo de nodo del hijo no permitido:',name);
+          console.log('Tipo de nodo del hijo no permitido:', name);
           break;
       }
 
       return dataNode;
 
-    }
+    }//yala
 
     const getDataChildsNode = (idFather, idChild, input) => {
       const fatherSelect = editor.value.getNodeFromId(idFather);
@@ -399,89 +438,110 @@ export default {
           console.log('Padre es assign');
           dataNode = getDataChildsNodeOfAssign(idFather, idChild, input);
           break;
-        case 'If':{ 
+        case 'If': {
           console.log('Padre es If');
           let father = editor.value.getNodeFromId(idFather);
           let child1 = father.data.ChildLeft;
           let child2 = idChild;
           if (input == 'input_1') {
-             child2 = father.data.ChildRight;
-             child1 = idChild;
+            child2 = father.data.ChildRight;
+            child1 = idChild;
           }
-          dataNode = {Father:father.data.Father, ChildLeft:child1, ChildRight: child2,
-             Expr1:father.data.Expr1, Operator:father.data.Operator, Expr2:father.data.Expr2,
-            Value:''};
-          
+          dataNode = {
+            Father: father.data.Father, ChildLeft: child1, ChildRight: child2,
+            Expr1: father.data.Expr1, Operator: father.data.Operator, Expr2: father.data.Expr2,
+            Value: ''
+          };
+
           break;
-          }
+        }
         case 'For':
           console.log('Padre es For');
           dataNode = {};
           break;
         default:
-          console.log('No permitido',name);
+          console.log('No permitido', name);
           break;
       }
 
       return dataNode;
 
-    }
+    }//yala
 
     //funciones para especificar como agregar los hijos segun el tipo de nodo Padre
     const getDataChildsNodeOfBinOp = (idFather, idChild, input) => {
       let Child = editor.value.getNodeFromId(idChild);
       let value = Child.data.Value;
 
-      let dataFather = editor.value.getNodeFromId(idFather);
+      let dataFather = getNodeFromNodesTree(idFather);
+      let brother = null;
       let left = null;
       let right = null;
+      let num1= 0;
+      let num2= 0;
+      let result = 0;
 
-      if (input== 'input_1') {
+      if (input == 'input_1') {
         left = idChild;
-        right = dataFather.data.ChildRight;
-      } else if (input== 'input_2'){
-        left = dataFather.data.ChildLeft;
+        num1 = value;
+        right = dataFather.childRight;
+       if (right != null) {
+          brother = editor.value.getNodeFromId(dataFather.childRight);
+          num2 = brother.data.Value;
+        }
+      } else if (input == 'input_2') {
+        num2 = value;
         right = idChild;
+        left = dataFather.childLeft;
+        if (left != null) {
+          brother = editor.value.getNodeFromId(dataFather.childLeft);
+          num1 = brother.data.Value;
+        }
       }
 
-      let updatedDataFather = {Father:dataFather.data.Father,ChildLeft:left,ChildRight:right,Value:0};
-      editor.value.updateNodeDataFromId(idFather,updatedDataFather);
+      result = getResultOperation(parseInt(num1), parseInt(num2), dataFather.token);
+      let dataNode = {Father: dataFather.father,ChildLeft: left,ChildRight:right,Value: result};
 
-      let dataNode = getValuesBinOp(idFather,idChild,value);
+      dispatch("setOperationAction", {
+        id: idFather,
+        value: { Number1: num1, Number2: num2, Result: result }
+      });
 
-      console.log('get new data del nodo padre',dataNode);
+      console.log('get new data del nodo padre', dataNode);
       return dataNode;
-    }
+    }//yala
 
-    const getValuesBinOp = (idFather,idChild,valueNew) => {
-      const fatherSelect = editor.value.getNodeFromId(idFather);
+    const getValuesBinOp = (idFather, idChild, valueNew) => {
+      const fatherSelect = getNodeFromNodesTree(idFather);
       let brother = null;
 
       let num1 = 0;
       let num2 = 0;
       let result = 0;
 
-      console.log(fatherSelect);
+      console.log('get values bin op',fatherSelect);
 
-      if (fatherSelect.data.ChildLeft == idChild) {
+      if (fatherSelect.childLeft == idChild) {
         num1 = valueNew;
-        if (fatherSelect.data.ChildRight != null) {
-          brother = editor.value.getNodeFromId(fatherSelect.data.ChildRight);
+        if (fatherSelect.childRight != null) {
+          brother = editor.value.getNodeFromId(fatherSelect.childRight);
           num2 = brother.data.Value;
         }
-      } else if (fatherSelect.data.ChildRight == idChild) {
+      } else if (fatherSelect.childRight == idChild) {
         num2 = valueNew;
-        if (fatherSelect.data.ChildLeft != null) {
-          brother = editor.value.getNodeFromId(fatherSelect.data.ChildLeft);
+        if (fatherSelect.childLeft != null) {
+          brother = editor.value.getNodeFromId(fatherSelect.childLeft);
           num1 = brother.data.Value;
         }
       }
 
-      result = getResultOperation(parseInt(num1), parseInt(num2), fatherSelect.name);
-      let dataNode = {Father:fatherSelect.data.Father, 
-                      ChildLeft:fatherSelect.data.ChildLeft,
-                      ChildRight:fatherSelect.data.ChildRight, 
-                      Value:result};
+      result = getResultOperation(parseInt(num1), parseInt(num2), fatherSelect.token);
+      let dataNode = {
+        Father: fatherSelect.father,
+        ChildLeft: fatherSelect.childLeft,
+        ChildRight: fatherSelect.childRight,
+        Value: result
+      };
 
       dispatch("setOperationAction", {
         id: idFather,
@@ -492,8 +552,8 @@ export default {
 
     }
 
-    const getDataChildsNodeOfAssign = (idNode, idChild,input) => {
-      const nodeSelect = editor.value.getNodeFromId(idNode);
+    const getDataChildsNodeOfAssign = (idNode, idChild, input) => {
+      const nodeSelect = getNodeFromNodesTree(idNode);
       let child = editor.value.getNodeFromId(idChild);
 
       let dataNode = {};
@@ -506,7 +566,7 @@ export default {
       switch (input) {
         case 'input_1':
           child1 = idChild;
-          child2 = nodeSelect.data.ChildRight;
+          child2 = nodeSelect.childRight;
           variable = child.data.Variable;
           if (child2 != null) {
             let brother = editor.value.getNodeFromId(child2);
@@ -515,7 +575,7 @@ export default {
           break;
         case 'input_2':
           child2 = idChild;
-          child1 = nodeSelect.data.ChildLeft;
+          child1 = nodeSelect.childLeft;
           value = child.data.Value;
           if (child1 != null) {
             let brother = editor.value.getNodeFromId(child1);
@@ -527,12 +587,7 @@ export default {
           break;
       }
 
-      dataNode = {
-        Father: nodeSelect.data.Father,
-        ChildLeft: child1,
-        ChildRight: child2,
-        Value: value
-      };
+      dataNode = {Father: nodeSelect.father,ChildLeft: child1,ChildRight: child2,Value: value};
 
       dispatch("setAssignAction", {
         id: idNode,
@@ -541,54 +596,50 @@ export default {
 
       console.log({ Variable: variable, Value: value });
       return dataNode;
-    }
+    }//yala
 
     //actualizar data nodo BinOp/Assign cuando se actualiza la data del nodo Number
     const updateData = (id) => {
-      const node = editor.value.getNodeFromId(id);
+      const node = getNodeFromNodesTree(id);
       console.log('actualizar data del nodo', node);
-      const idFather = node.data.Father;
-      
-      
+      const idFather = node.father;
+      updateNodesTree(id);
+
       if (idFather != null) {
-        switch (node.name) {
+        switch (node.token) {
           case 'Number':
             updateDataFatherOfNodeNumber(id);
             break;
           case 'Variable':
-            updateDataFatherOfNodeVariable(id);
+            updateDataFatherOfNodeVariable(id,idFather);
             break;
-
           default:
             break;
         }
       }
+    }
 
+    const updateNodesTree = (id) =>{
+      const node = editor.value.getNodeFromId(id);
       nodesTree.forEach(nodeTree => {
-          if (nodeTree.id == id) {
-            switch (nodeTree.token) {
-              case 'Number':
-                nodeTree.value = parseInt(node.data.number);
-                break;
-              case 'Variable':
-                nodeTree.variable = node.data.variable;
-                break;
-              case 'If':
-                nodeTree.value = node.data.Expr1+' '+node.data.Operator+' '+node.data.Expr2;
-                break;
-              case 'For':
-                nodeTree.variable = node.data.variable;
-                break;
-              default:
-                break;
-            }
+        if (nodeTree.id == id) {
+          switch (nodeTree.token) {
+            case 'Number':
+              nodeTree.value = parseInt(node.data.number);
+              break;
+            case 'Variable':
+              nodeTree.variable = node.data.variable;
+              break;
+            default:
+              break;
           }
+        }
       });
     }
 
     const updateDataFatherOfNodeNumber = (id) => {
-      const node = editor.value.getNodeFromId(id);
-      const idFather = node.data.Father;
+      const node = getNodeFromNodesTree(id);
+      const idFather = node.father;
       const Father = editor.value.getNodeFromId(idFather);
       let name = Father.name;
 
@@ -598,10 +649,10 @@ export default {
 
       switch (name) {
         case 'Assign':
-          updateNodeFatherAssign(id);
+          updateNodeFatherAssign(id,idFather);
           break;
         case 'BinOp':
-          updateNodeFatherBinOp(id);
+          updateNodeFatherBinOp(id,idFather);
           break;
 
         default:
@@ -610,53 +661,43 @@ export default {
 
     }
 
-    const updateNodeFatherBinOp = (id) => {
+    const updateNodeFatherBinOp = (id,idFather) => {
       const node = editor.value.getNodeFromId(id);
-      const idFather = node.data.Father;
-
       let number = parseInt(node.data.number);
 
       if (node.data.number == '') {//isNaN(parseInt(node.data.number))) {
         number = 0;
       }
 
-      let dataNode = getValuesBinOp(idFather,id,number);
+      let dataNode = getValuesBinOp(idFather, id, number);
 
-      editor.value.updateNodeDataFromId(idFather, dataNode);
+      editor.value.updateNodeDataFromId(idFather, {Value:dataNode.Value});
 
       nodesTree.forEach(node => {
         if (node.id == idFather) {
           node.value = dataNode.Value;
         }
       });
-      
+
       updateRecursiveArithOp(idFather, dataNode.Value);
     }
 
-    const updateNodeFatherAssign = (id) => {
+    const updateNodeFatherAssign = (id,idFather) => {
       const node = editor.value.getNodeFromId(id);
-      const idFather = node.data.Father;
-      const Father = editor.value.getNodeFromId(idFather);
+      const Father = getNodeFromNodesTree(idFather);
 
       let number = parseInt(node.data.number);
       if (node.data.number == '') {//isNaN(parseInt(node.data.number))) {
         number = 0;
       }
 
-      const dataFather = Father.data;
-
       let variable = '';
-      if (dataFather.ChildLeft != null) {//isNaN(parseInt(node.data.number))) {
-        let childVar = editor.value.getNodeFromId(dataFather.ChildLeft);
+      if (Father.childLeft != null) {//isNaN(parseInt(node.data.number))) {
+        let childVar = editor.value.getNodeFromId(Father.childLeft);
         variable = childVar.data.Variable;
       }
 
-      editor.value.updateNodeDataFromId(idFather, {
-        Father: dataFather.Father,
-        ChildLeft: dataFather.ChildLeft,
-        ChildRight: dataFather.ChildRight,
-        Value: number
-      });
+      editor.value.updateNodeDataFromId(idFather, {Value: number});
 
       nodesTree.forEach(node => {
         if (node.id == idFather) {
@@ -666,39 +707,29 @@ export default {
       dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: number } });
     }
 
-    const updateDataFatherOfNodeVariable = (id) => {
+    const updateDataFatherOfNodeVariable = (id,idFather) => {
       const node = editor.value.getNodeFromId(id);
-      const idFather = node.data.Father;
-
       let variable = node.data.variable;
-
+    
       const Father = editor.value.getNodeFromId(idFather);
-      const dataFather = Father.data;
 
-      editor.value.updateNodeDataFromId(idFather, {
-        Father: dataFather.Father,
-        ChildLeft: dataFather.ChildLeft,
-        ChildRight: dataFather.ChildRight,
-        Value: dataFather.Value
-      });
-
-      dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: dataFather.Value } });
-      
+      editor.value.updateNodeDataFromId(idFather, {Value: Father.data.Value});
+      dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: Father.data.Value } });
     }
 
     //recursividad nodo Operaciones Aritmeticas
     const updateRecursiveArithOp = (idFather, newValue) => {
 
-      const nodeFather = editor.value.getNodeFromId(idFather);
-      const idNextFather = nodeFather.data.Father;
+      const nodeFather = getNodeFromNodesTree(idFather);
+      const idNextFather = nodeFather.father;
 
       if (idNextFather != null) {
-        const nextFather = editor.value.getNodeFromId(idNextFather);
+        const nextFather = getNodeFromNodesTree(idNextFather);
 
-        if (nextFather.name == 'Add' || nextFather.name == 'Sub' || nextFather.name == 'Mul' || nextFather.name == 'Div') {
+        if (nextFather.token == 'Add' || nextFather.token == 'Sub' || nextFather.token == 'Mul' || nextFather.token == 'Div') {
 
-          let dataNode = getValuesBinOp(idNextFather,idFather,newValue);
-          editor.value.updateNodeDataFromId(idNextFather,dataNode);
+          let dataNode = getValuesBinOp(idNextFather, idFather, newValue);
+          editor.value.updateNodeDataFromId(idNextFather, {Value:dataNode.Value});
 
           nodesTree.forEach(node => {
             if (node.id == idNextFather) {
@@ -708,24 +739,16 @@ export default {
 
           updateRecursiveArithOp(idNextFather, dataNode.Value);
 
-        } else if (nextFather.name == 'Assign') {
+        } else if (nextFather.token == 'Assign') {
           let number = parseInt(newValue);
           let variable = '';
 
-          const dataFather = nextFather.data;
-
-          if (dataFather.ChildLeft != null) {
-            let childVar = editor.value.getNodeFromId(dataFather.ChildLeft);
+          if (nextFather.childLeft != null) {
+            let childVar = editor.value.getNodeFromId(nextFather.childLeft);
             variable = childVar.data.Variable;
           }
 
-          
-          editor.value.updateNodeDataFromId(idNextFather, {
-            Father: dataFather.Father,
-            ChildLeft: dataFather.ChildLeft,
-            ChildRight: dataFather.ChildRight,
-            Value: number
-          });
+          editor.value.updateNodeDataFromId(idNextFather, { Value: number});
 
           nodesTree.forEach(node => {
             if (node.id == idNextFather) {
@@ -805,7 +828,7 @@ export default {
         var token = ev.dataTransfer.getData("node");
         addNodeToDrawFlow(token, ev.clientX, ev.clientY);
       }
-    };
+    };//yala
 
     const enableDrop = (ev) => {
       ev.preventDefault();
@@ -820,7 +843,7 @@ export default {
           (editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)));
 
       setNodeType(name, pos_x, pos_y);
-    };
+    };//yala
 
     const setNodeType = (token, pos_x, pos_y) => {
       let data = {};
@@ -836,29 +859,32 @@ export default {
       switch (name) {
         case 'BinOp':
           arithmeticOp = data.token;
-          editor.value.addNode(arithmeticOp, 2, 1, pos_x, pos_y, arithmeticOp, { Father: null, ChildLeft: null, ChildRight: null, Value: 0 }, arithmeticOp, 'vue');
+          editor.value.addNode(arithmeticOp, 2, 1, pos_x, pos_y, arithmeticOp, { Value: 0 }, arithmeticOp, 'vue');
           break;
         case 'Declarative':
-          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', { Father: null, Value: 0 }, 'Number', 'vue');
+          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', { Value: 0 }, 'Number', 'vue');
           break;
         case 'Assign':
-          editor.value.addNode('Assign', 2, 1, pos_x, pos_y, 'Assign', { Father: null, ChildLeft: null, ChildRight: null, Value: 0 }, 'Assign', 'vue');
+          editor.value.addNode('Assign', 2, 1, pos_x, pos_y, 'Assign', {  Value: 0 }, 'Assign', 'vue');
           break;
         case 'Variable':
-          editor.value.addNode('Variable', 0, 1, pos_x, pos_y, 'Variable', { Father: null, Variable: '', Value: 0 }, 'Variable', 'vue');
+          editor.value.addNode('Variable', 0, 1, pos_x, pos_y, 'Variable', { Variable: '', Value: 0 }, 'Variable', 'vue');
           break;
         case 'If':
-          editor.value.addNode('If', 2, 1, pos_x, pos_y, 'If', { Father: null,ChildLeft: null, ChildRight: null, Operator:'',Expr1:0, Expr2:0 }, 'If', 'vue');
+          editor.value.addNode('If', 2, 1, pos_x, pos_y, 'If', { Father: null, ChildLeft: null, ChildRight: null, Operator: '', Expr1: 0, Expr2: 0 }, 'If', 'vue');
           break;
         case 'For':
           editor.value.addNode('For', 1, 1, pos_x, pos_y, 'For', { Father: null, ChildLeft: null, ChildRight: null, Start: 0, Finish: 0 }, 'For', 'vue');
+          break;
+        case 'Block':
+          editor.value.addNode('Block', 2, 1, pos_x, pos_y, 'Block', {  Value: 0 }, 'Block', 'vue');
           break;
         default:
           console.log('no se encontro');
           break;
       }
 
-    };
+    };//yala
 
     const generateCode = () => {
       var exportdata = editor.value.export();
@@ -870,15 +896,15 @@ export default {
       openModalCode();
     };
 
-    const openModalCode = () =>{
+    const openModalCode = () => {
       Swal.fire({
         input: 'textarea',
         inputLabel: 'Sintaxis Python Code',
-        inputValue:pythonCode.value,
+        inputValue: pythonCode.value,
         inputPlaceholder: 'Code here...',
         inputAttributes: {
           'aria-label': 'Code here',
-          'disabled':true,
+          'disabled': true,
         },
         showClass: {
           popup: 'animate__animated animate__fadeInDown'
@@ -891,7 +917,7 @@ export default {
         confirmButtonText: 'Save',
         denyButtonText: `Run`
       }).then((result) => {
-        
+
         if (result.isConfirmed) {
           addProgram();
         } else if (result.isDenied) {
@@ -901,15 +927,15 @@ export default {
       })
     }
 
-    const openModalRun = () =>{
+    const openModalRun = () => {
       Swal.fire({
         input: 'textarea',
         inputLabel: 'Shell',
-        inputValue:resultProgram.value,
+        inputValue: resultProgram.value,
         inputPlaceholder: 'Type your message here...',
         inputAttributes: {
           'aria-label': 'Type your message here',
-          'disabled':true,
+          'disabled': true,
         },
         showClass: {
           popup: 'animate__animated animate__fadeInDown'
@@ -929,7 +955,7 @@ export default {
 
     const getCode = async () => {
       getPrograms();
-      let lista=[];
+      let lista = [];
       listPrograms.value.forEach(program => {
         lista.push(program.uid);
       });
@@ -937,16 +963,16 @@ export default {
       const options = Object.assign({}, lista);
 
       const { value: program } = await Swal.fire({
-      title: 'Select Program',
-      input: 'select',
-      inputOptions: options,
-      inputPlaceholder: 'Select a fruit',
-      showCancelButton: true,
-      inputValidator: (value) => {
-        if (!value) {
-          return 'You need to choose something!'
+        title: 'Select Program',
+        input: 'select',
+        inputOptions: options,
+        inputPlaceholder: 'Select a fruit',
+        showCancelButton: true,
+        inputValidator: (value) => {
+          if (!value) {
+            return 'You need to choose something!'
+          }
         }
-      }
       })
       if (program) {
         //setCode(program);
@@ -963,8 +989,8 @@ export default {
         })
       }
     }
-// funciones para verificar correctas conexiones entre nodos
-    const evalutedConnection = (connection) =>{
+    // funciones para verificar correctas conexiones entre nodos
+    const evalutedConnection = (connection) => {
       const father = editor.value.getNodeFromId(connection.input_id);
       const child = editor.value.getNodeFromId(connection.output_id);
       let nameFather = father.name;
@@ -981,34 +1007,37 @@ export default {
 
       switch (nameFather) {
         case 'BinOp':
-            taken = takenConnection(connection);
-            if ((nameChild=='Number' || nameChild == 'BinOp') && !taken) {
-              valid= true
-            }
+          taken = takenConnection(connection);
+          if ((nameChild == 'Number' || nameChild == 'BinOp') && !taken) {
+            valid = true
+          }
           break;
         case 'Assign':
-            taken = takenConnection(connection);
-            if ((nameChild=='Number' || nameChild == 'BinOp' ) && connection.input_class == 'input_2' && !taken) {
-              valid= true;
-            }else if (nameChild=='Variable'  && connection.input_class == 'input_1' && !taken) {
-              valid = true;
-            } 
+          taken = takenConnection(connection);
+          if ((nameChild == 'Number' || nameChild == 'BinOp') && connection.input_class == 'input_2' && !taken) {
+            valid = true;
+          } else if (nameChild == 'Variable' && connection.input_class == 'input_1' && !taken) {
+            valid = true;
+          }
           break;
         case 'If':
-             taken = takenConnection(connection);
-            if ((nameChild!='Else') && connection.input_class == 'input_1' && !taken) {
-              valid= true;
-            }else if (nameChild=='Else'  && connection.input_class == 'input_2' && !taken) {
-              valid = true;
-            } 
+          taken = takenConnection(connection);
+          if ((nameChild != 'Else') && connection.input_class == 'input_1' && !taken) {
+            valid = true;
+          } else if (nameChild == 'Else' && connection.input_class == 'input_2' && !taken) {
+            valid = true;
+          }
           break;
         case 'For':
-              if (!taken) {
-                valid = true;
-              }
+          if (!taken) {
+            valid = true;
+          }
           break;
-      
+
         default:
+          if (!taken) {
+            valid = true;
+          }
           break;
       }
       return valid;
@@ -1019,22 +1048,22 @@ export default {
       let taken = false;
 
       if (connection.input_class == 'input_1') {
-         if (father.data.ChildLeft != null) {
-           taken = true;
-         }
-        
-      }else if (connection.input_class == 'input_2') {
-         if (father.data.ChildRight != null) {
-           taken = true;
-         } 
+        if (father.data.ChildLeft != null) {
+          taken = true;
+        }
+
+      } else if (connection.input_class == 'input_2') {
+        if (father.data.ChildRight != null) {
+          taken = true;
+        }
       }
       return taken;
     }
 
-//request
+    //request
     //GET
     const getPrograms = async () => {
-      listPrograms.value = [{uid:'orange',Code:'hola'}];
+      listPrograms.value = [{ uid: 'orange', Code: 'hola' }];
       try {
         const requestOptions = {
           method: "GET",
@@ -1060,7 +1089,7 @@ export default {
       }
     };
     //POST
-    const addProgram  = async () => {
+    const addProgram = async () => {
       try {
         const requestOptions = {
           method: "POST",
@@ -1068,7 +1097,7 @@ export default {
           body: JSON.stringify({ Code: [pythonCode.value] }),
         };
         console.log({ Code: [pythonCode.value] });
-        await fetch( apiUrl.value + "/programs", requestOptions);
+        await fetch(apiUrl.value + "/programs", requestOptions);
         Swal.fire({
           position: "center",
           icon: "success",
@@ -1081,10 +1110,10 @@ export default {
         Swal.fire('No se pudo guardar!!', '', 'error')
       }
     };
-  
+
     //ejecutar codigo
-    const runProgram = async () =>{
-      resultProgram.value='hola';
+    const runProgram = async () => {
+      resultProgram.value = 'hola';
       try {
         const requestOptions = {
           method: "POST",
@@ -1132,9 +1161,9 @@ export default {
       editor.value.registerNode('Assign', AssignVue, {}, {}, 'vue');
       editor.value.registerNode('If', IfVue, {}, {}, 'vue');
       editor.value.registerNode('For', ForVue, {}, {}, 'vue');
+      editor.value.registerNode('Block', BlockVue, {}, {}, 'vue');
 
-
-      // Events! saltan cuando sean manipulados los nodos
+      // Events!
       editor.value.on('nodeCreated', function (id) {
         console.log("Node created " + id);
         createTree(id); //caundo se cree un nuevo nodo se almacenara en la lista nodos
@@ -1147,13 +1176,14 @@ export default {
         let connectionValid = evalutedConnection(connection);
         if (connectionValid) {
           updateNode(connection);
-        }else{
-          editor.value.removeSingleConnection(connection.output_id,connection.input_id,connection.output_class, connection.input_class);
-          Swal.fire({ title: 'Warning!',
-                      text: 'Conexion no valida',
-                      icon: 'warning',
-                      confirmButtonText: 'Ok'
-                    });
+        } else {
+          editor.value.removeSingleConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
+          Swal.fire({
+            title: 'Warning!',
+            text: 'Conexion no valida',
+            icon: 'warning',
+            confirmButtonText: 'Ok'
+          });
         }
       })
 
@@ -1163,10 +1193,19 @@ export default {
         updateData(id);
       })
 
+      editor.value.on('connectionRemoved', function (connection) {
+        console.log("connection eliminada ", connection);
+        deleteConnection(connection);
+      })
+
+      editor.value.on('nodeRemoved', function (id) {
+        console.log("Node Removed " + id);
+        deleteNode(id);
+      })
 
     });
 
-    return {pythonCode, evalutedConnection , updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, getCode, interpreter, createTree, addNode, updateNode, updateData };
+    return { pythonCode, evalutedConnection, updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, getCode, interpreter, createTree, addNode, updateNode, updateData };
 
   }
 
@@ -1258,8 +1297,8 @@ export default {
 }
 
 .swal2-textarea {
-    height: 6.75em;
-    padding: .75em;
-    background-color: #282c34;
+  height: 6.75em;
+  padding: .75em;
+  background-color: #282c34;
 }
 </style>

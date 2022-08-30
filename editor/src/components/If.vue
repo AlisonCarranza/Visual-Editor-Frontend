@@ -18,6 +18,9 @@
 
         </select>
         <input  class="form-control mt-3" type="number" @change="changeExpr" @keyup="changeExpr" v-model="expr2"/>
+
+        <span class="text-lg"><a>Block Code</a></span>
+        <button type="button" class="btn btn-primary" @click="addNewConnectionChild">Add Block</button>
     </div>
 </template>
 
@@ -43,10 +46,14 @@ export default {
 
              console.log('se actualizo',editor.value.getNodeFromId(nodeId)); 
         }
+        const addNewConnectionChild = () =>{
+            editor.value.addNodeInput(nodeId);
+            console.log('a ver si se agrego el input',editor.value.getNodeFromId(nodeId));
+        }
     onMounted(() => {
          
       });
-        return {changeExpr,expr1,expr2,operator};
+        return {changeExpr,expr1,expr2,operator, addNewConnectionChild};
     }
 }
 </script>
