@@ -1,7 +1,6 @@
 <template>
     <div>
         <h2 class="text-2xl">Block Code</h2>
-        <span class="text-lg"><a>Block Code</a></span>
         <button type="button" class="btn btn-primary" @click="addNewConnectionChild">Add Block</button>
     </div>
 </template>

@@ -4,35 +4,39 @@
     <div class="container cuerpo">
       <div class="row">
         <div class="col-3">
-          <ul class="list-group">
-            <h3 style="text-align: center">Principal</h3>
-            <hr />
-            <li class="list-group-item">
-              <div class="btn-group" role="group" aria-label="Basic example">
-                <button type="button" class="btn btn-primary" id="toggle-btn1" v-on:click="generateCode()">
-                  Generar Codigo
-                </button>
-                <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="getCode()">
-                  Get Codigo
-                </button>
-              </div>
-            </li>
-
-            <h3 style="text-align: center" class="mt-3">Operaciones</h3>
-            <hr />
-            <li class="list-group-item" v-for="(n, id) in lista" :key="id" draggable="true" :data-node="n.token"
-              @dragstart="drag($event)" @dragover="enableDrop($event)">
-              <div class="card node" style="background-color: pink">
-                <div class="card-body">
-                  <h5 class="card-title">{{ n.token }}</h5>
+          <div class="mb-2">
+              <h3 style="text-align: center">Principal</h3>
+              <hr />
+              <div class="d-flex justify-content-center list-group-secondary">
+                <div class="btn-group-vertical" role="group" aria-label="Basic example">
+                  <button type="button" class="btn btn-primary" id="toggle-btn1" v-on:click="generateCode()">
+                    Get Code
+                  </button>
+                  <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="getCode()">
+                    Program List 
+                  </button>
                 </div>
-              </div>
-            </li>
-          </ul>
+              </div> 
+              <hr />
+          </div>
+          <div class="wrapper">
+            <ul class="list-group barra">
+              <h3 style="text-align: center" class="mt-3">Operaciones</h3>
+              <hr />
+              <li class="list-group-item list-group-item-secondary" v-for="(n, id) in lista" :key="id" draggable="true" :data-node="n.token"
+                @dragstart="drag($event)" @dragover="enableDrop($event)">
+                <div class="card node" style="background-color: rgba(251, 47, 193,0.6);color:white">
+                  <div class="card-body">
+                    <h5 class="card-title">{{ n.token }}</h5>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>         
         </div>
         <div class="col-9">
           <div id="drawflow" @drop="drop($event)" @dragover="enableDrop($event)">
-            <h1 class="p-5" style="color: white">!!</h1>
+            
           </div>
         </div>
       </div>
@@ -318,22 +322,50 @@ export default {
     };
     //remove 
     const deleteNode = (id) => {
+      removeDataNodeofOthersNodes(id,'delete');
+    }
+
+    const removeDataNodeofOthersNodes = (id,type) => {
+      console.log('aja',id);
+      let idNodeDelete = 0;
       nodesTree.forEach((node, index) => {
-        if (node.id == id) {//eliminar el padre al hijo
-          nodesTree.splice(index, 1);
-        } else if (node.father == id) {
+        if (node.father == id) {
           node.father = null;
-        } else if (node.childLeft == id) {
-          node.childLeft = null;
-        } else if (node.childRight == id) {
-          node.childRight = null;
+        }
+        
+        if(node.expression=='Block'){ 
+          node.childs.forEach((child,index)=> {
+             if (child.idChild == id) {
+                 node.childs.splice(index,1);
+             }
+          });
+
+        }else {
+            if (node.childLeft == id) {
+              node.childLeft = null;
+            } else if (node.childRight == id) {
+              node.childRight = null;
+            }
+        }
+
+        if (node.id == id) {
+          idNodeDelete = index
+          if (type === 'update') {
+            node.father=null;
+          }
         }
       });
 
+      if (type==='delete') {
+        nodesTree.splice(idNodeDelete, 1);
+      }
+      
     }
 
     const deleteConnection = (connection) => {
       console.log(connection);
+      updateData(connection.output_id);
+      removeDataNodeofOthersNodes(connection.output_id,'update');
     }
 
     const getNodeFromNodesTree = (id) => {
@@ -370,7 +402,6 @@ export default {
               idChild:connection.output_id,
             });
           }
-
         }
       });
 
@@ -610,6 +641,9 @@ export default {
           case 'Number':
             updateDataFatherOfNodeNumber(id);
             break;
+          case 'Add':
+            updateDataFatherOfNodeNumber(id);
+            break;
           case 'Variable':
             updateDataFatherOfNodeVariable(id,idFather);
             break;
@@ -625,10 +659,14 @@ export default {
         if (nodeTree.id == id) {
           switch (nodeTree.token) {
             case 'Number':
-              nodeTree.value = parseInt(node.data.number);
+              if (!isNaN(parseInt(node.data.number))) {
+                nodeTree.value = parseInt(node.data.number);
+              }
               break;
             case 'Variable':
-              nodeTree.variable = node.data.variable;
+              if (!isNaN(parseInt(node.data.variable))) {
+                nodeTree.variable = node.data.variable;
+              }
               break;
             default:
               break;
@@ -665,9 +703,10 @@ export default {
       const node = editor.value.getNodeFromId(id);
       let number = parseInt(node.data.number);
 
-      if (node.data.number == '') {//isNaN(parseInt(node.data.number))) {
+      if (isNaN(parseInt(node.data.number))) {
         number = 0;
       }
+      console.log('prueba',number);
 
       let dataNode = getValuesBinOp(idFather, id, number);
 
@@ -678,7 +717,6 @@ export default {
           node.value = dataNode.Value;
         }
       });
-
       updateRecursiveArithOp(idFather, dataNode.Value);
     }
 
@@ -687,12 +725,12 @@ export default {
       const Father = getNodeFromNodesTree(idFather);
 
       let number = parseInt(node.data.number);
-      if (node.data.number == '') {//isNaN(parseInt(node.data.number))) {
+      if (isNaN(parseInt(node.data.number))) {
         number = 0;
       }
 
       let variable = '';
-      if (Father.childLeft != null) {//isNaN(parseInt(node.data.number))) {
+      if (Father.childLeft != null) {
         let childVar = editor.value.getNodeFromId(Father.childLeft);
         variable = childVar.data.Variable;
       }
@@ -1214,6 +1252,17 @@ export default {
 </script>
 
 <style>
+.wrapper {
+    width: 100%;
+    height: calc(100vh - 250px);
+}
+
+.barra{
+  overflow: auto !important;
+  height: 100%;
+  border-right: 1px solid #e2e3e5;
+}
+
 #app1 {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -1274,26 +1323,7 @@ export default {
   box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.2), 0 5px 5px 0 rgba(0, 0, 0, 0.24);
   margin: 0px;
   padding: 2%;
-}
-
-/**nuevo */
-.drawflow .drawflow-node {
-  border-radius: 8px;
-  background: pink !important;
-  border: 2px solid #494949;
-  color: black;
-  min-width: 100px;
-}
-
-.drawflow .drawflow-node.selected {
-  background: rgb(129, 37, 138) !important;
-  border: 2px solid rgb(241, 241, 241);
-}
-
-.drawflow .drawflow-node .drawflow_content_node input,
-.drawflow .drawflow-node .drawflow_content_node .el-select,
-.drawflow .drawflow-node .drawflow_content_node button {
-  width: 100%;
+  background-color: #d9dde0;
 }
 
 .swal2-textarea {
@@ -1301,4 +1331,5 @@ export default {
   padding: .75em;
   background-color: #282c34;
 }
+
 </style>

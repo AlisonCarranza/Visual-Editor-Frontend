@@ -5,6 +5,7 @@ import store from "./store";
 import Bootstrap from "bootstrap/dist/css/bootstrap.css";
 import styleDrawflow from 'drawflow/dist/drawflow.min.css';
 import 'animate.css';
+import './assets/style.css';
 
 
 
