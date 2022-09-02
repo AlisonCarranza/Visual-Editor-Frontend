@@ -12,7 +12,7 @@
                   <button type="button" class="btn btn-primary" id="toggle-btn1" v-on:click="generateCode()">
                     Get Code
                   </button>
-                  <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="getCode()">
+                  <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="openModalListPrograms()">
                     Program List 
                   </button>
                 </div>
@@ -43,12 +43,53 @@
     </div>
 
   </div>
-
+  <!--Modal Lists Code-->
+  <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLabel">List Programs</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Program id</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr @click="setCode(item.uid)" v-for="(item, index) in listPrograms" :key = "index">
+                <th scope="row">{{ index }}</th>
+                <td>Programa {{ item.uid }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <nav aria-label="Page navigation example">
+            <ul class="pagination justify-content-end">
+              <li class="page-item ">
+                <a class="page-link" v-on:click="nextPage(1)">Previous</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" v-on:click="nextPage(2)">Next</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
 import Drawflow from 'drawflow'
 import Swal from 'sweetalert2'
+import { Modal } from 'bootstrap'
+
 import { h, getCurrentInstance, render, readonly, onMounted, shallowRef, ref } from 'vue'
 
 import NumberVue from './components/Number.vue';
@@ -151,6 +192,8 @@ export default {
     const listPrograms = ref({});
     //api url
     const apiUrl = ref("http://localhost:3000");
+    var param=0;
+    var listPagination = [];
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
     const interpreter = () => {
@@ -215,7 +258,7 @@ export default {
           break;
       }
 
-      return code;
+      return code.toString();
 
     };
 
@@ -991,42 +1034,30 @@ export default {
       })
     }
 
-    const getCode = async () => {
+    const openModalListPrograms = async () =>{
+      const myModal = new Modal(document.getElementById('exampleModal'),{})
+      myModal.show();
+      param=0;
       getPrograms();
-      let lista = [];
-      listPrograms.value.forEach(program => {
-        lista.push(program.uid);
-      });
-
-      const options = Object.assign({}, lista);
-
-      const { value: program } = await Swal.fire({
-        title: 'Select Program',
-        input: 'select',
-        inputOptions: options,
-        inputPlaceholder: 'Select a fruit',
-        showCancelButton: true,
-        inputValidator: (value) => {
-          if (!value) {
-            return 'You need to choose something!'
-          }
-        }
-      })
-      if (program) {
-        //setCode(program);
-        Swal.fire(`You selected: ${program}`)
-        Swal.fire({
-          title: `You selected: ${program}`,
-          showCancelButton: true,
-          confirmButtonText: 'Code',
-        }).then((result) => {
-          /* Read more about isConfirmed, isDenied below */
-          if (result.isConfirmed) {
-            openModalCode();
-          }
-        })
-      }
     }
+    const nextPage = async (id) =>{
+      if (id===1) { 
+        listPagination.forEach(page => {
+          if (page.next == param) {
+            param = page.previus;
+          }
+        });
+        
+      }else if (id===2){
+        listPagination.forEach(page => {
+          if (page.previus == param) {
+            param = page.next;
+          }
+        });
+      }
+      getPrograms();
+    }
+
     // funciones para verificar correctas conexiones entre nodos
     const evalutedConnection = (connection) => {
       const father = editor.value.getNodeFromId(connection.input_id);
@@ -1101,32 +1132,48 @@ export default {
     //request
     //GET
     const getPrograms = async () => {
-      listPrograms.value = [{ uid: 'orange', Code: 'hola' }];
       try {
         const requestOptions = {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         };
         const response = await fetch(
-          apiUrl.value + "/programs",
+          apiUrl.value + "/page/"+param,//+"/programs"
           requestOptions
         );
-        const json = await response.json();
-        console.log(json);
-        listPrograms.value = json.queryAllPrograms;
 
-        Swal.fire({
-          position: "center",
-          icon: "success",
-          title: "listNodes cargada exitosamente!!",
-          showConfirmButton: false,
-          timer: 1500,
+        const json = await response.json();
+        listPrograms.value = json.queryPrograms;//json.queryAllPrograms;
+
+        listPrograms.value.forEach((program,index)=> {
+           if (index == listPrograms.value.length-1) {
+            if (listPagination.length>0) {
+              let repetido = false;
+              listPagination.forEach(page => {
+                if (page.previus==param && page.next==program.uid) {
+                  repetido = true;
+                }
+              });
+              if (!repetido) {
+                listPagination.push({previus:param,next:program.uid});
+              }
+            } else {
+              listPagination.push({previus:param,next:program.uid});
+            }
+           }
         });
+        //openModalListPrograms();
       } catch (err) {
+        Swal.fire({
+                title: 'Error!',
+                text: 'No se pudo acceder a la Base de Datos',
+                icon: 'error',
+                confirmButtonText: 'Ok'
+          });
         console.log("get", err);
       }
     };
-    //POST
+    //POST -- si funciona
     const addProgram = async () => {
       try {
         const requestOptions = {
@@ -1144,8 +1191,12 @@ export default {
           timer: 1500,
         });
       } catch (err) {
-        console.log("add", err);
-        Swal.fire('No se pudo guardar!!', '', 'error')
+          Swal.fire({
+                title: 'Error!',
+                text: 'No se pudo guardar',
+                icon: 'error',
+                confirmButtonText: 'Ok'
+          });
       }
     };
 
@@ -1167,16 +1218,44 @@ export default {
         resultProgram.value = data;
       } catch (err) {
         console.log("run", err);
-        //Swal.fire('No se pudo correr el Programa!!', '', 'error')
+        Swal.fire({
+                title: 'Error!',
+                text: 'No se puede ejecutar el programa. Problemas de acceso.',
+                icon: 'error',
+                confirmButtonText: 'Ok'
+        });
       }
     };
 
     //cargar listNodes de progrmas en el select
-    /*const setCode = (uid) => {
-      const code = listPrograms.value.find((x) => x.uid == uid);
-      console.log(code)
-      pythonCode.value = code.Code[0];
-    };*/
+    const setCode = (uid) => {
+          const myModal = Modal.getInstance(document.getElementById('exampleModal'));
+          myModal.hide();
+
+          try{ 
+            const code = listPrograms.value.find((x) => x.uid == uid);
+            //const code = listPrograms.value[index];
+            console.log('codigo',code)
+            pythonCode.value = code.Code[0];
+
+            Swal.fire({
+              title: `You selected program correctly!!`,
+              showCancelButton: true,
+              confirmButtonText: 'Code',
+            }).then((result) => {
+              if (result.isConfirmed) {
+                openModalCode();
+              }
+            })
+          } catch (error) {
+            Swal.fire({
+                title: 'Error!',
+                text: 'El programa seleccionado no se pudo encontrar',
+                icon: 'error',
+                confirmButtonText: 'Ok'
+            });
+          } 
+    };
 
     onMounted(() => {
 
@@ -1243,7 +1322,7 @@ export default {
 
     });
 
-    return { pythonCode, evalutedConnection, updateRecursiveArithOp, getResultOperation, setNodeType, lista, drag, drop, enableDrop, generateCode, getCode, interpreter, createTree, addNode, updateNode, updateData };
+    return {nextPage, openModalListPrograms, getPrograms ,pythonCode, evalutedConnection, updateRecursiveArithOp, getResultOperation, setNodeType, lista, setCode, listPrograms, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
 
   }
 
@@ -1252,6 +1331,16 @@ export default {
 </script>
 
 <style>
+
+tbody tr:hover{ 
+  cursor: pointer;
+  background: rgba(223, 237, 244);
+  color: rgba(5, 44, 64, 1);
+  border: 1px solid rgba(223, 237, 244);
+  -webkit-box-shadow: 0px 1px 8px 1px rgba(78, 169, 255, 1);
+  box-shadow:0px 1px 8px 1px rgba(78, 169, 255, 1);
+}
+
 .wrapper {
     width: 100%;
     height: calc(100vh - 250px);
