@@ -25,7 +25,7 @@ export default {
 
       const changeVar = (e) => {
            let dataNode = editor.value.getNodeFromId(nodeId);
-           editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.data.Father,Variable:e.target.value, Value: dataNode.data.Value});
+           editor.value.updateNodeDataFromId(nodeId, {Variable:e.target.value, Value: dataNode.data.Value});
            console.log('variable',editor.value.getNodeFromId(nodeId));
 
            dispatch("setVariableAction", {id: nodeId, value: e.target.value});

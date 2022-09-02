@@ -7,7 +7,6 @@
 
 
         <select class="form-select mt-3" aria-label="Default select example" v-model="operator" @change="changeExpr" >
-        <option selected>Operador</option>
         <option style="text-align: center;" value="<"> <h1>  &lt; </h1> </option>
         <option style="text-align: center;" value=">"> <h1> > </h1> </option>
         <option style="text-align: center;" value="=="> <h1>==</h1> </option>
@@ -18,9 +17,6 @@
 
         </select>
         <input  class="form-control mt-3" type="number" @change="changeExpr" @keyup="changeExpr" v-model="expr2"/>
-
-        <span class="text-lg"><a>Block Code</a></span>
-        <button type="button" class="btn btn-primary" @click="addNewConnectionChild">Add Block</button>
     </div>
 </template>
 
@@ -31,7 +27,7 @@ export default {
     setup() {
         const expr1 = ref(0);
         const expr2 = ref(0);
-        const operator = ref('');
+        const operator = ref('<');
        
 
         const internalInstance = getCurrentInstance();
@@ -39,21 +35,14 @@ export default {
         const nodeId = editor.value.nodeId;
 
         const changeExpr = () => {
-             let node = editor.value.getNodeFromId(nodeId);
-             editor.value.updateNodeDataFromId(nodeId,
-             {Father:node.data.Father, ChildLeft:node.data.ChildLeft, ChildRight: node.data.ChildRight,
-             Expr1:expr1.value, Operator:operator.value, Expr2:expr2.value});
-
+             editor.value.updateNodeDataFromId(nodeId,{Expr1:expr1.value, Operator:operator.value, Expr2:expr2.value});
              console.log('se actualizo',editor.value.getNodeFromId(nodeId)); 
         }
-        const addNewConnectionChild = () =>{
-            editor.value.addNodeInput(nodeId);
-            console.log('a ver si se agrego el input',editor.value.getNodeFromId(nodeId));
-        }
+
     onMounted(() => {
          
       });
-        return {changeExpr,expr1,expr2,operator, addNewConnectionChild};
+        return {changeExpr,expr1,expr2,operator};
     }
 }
 </script>

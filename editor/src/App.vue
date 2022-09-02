@@ -245,11 +245,12 @@ export default {
           break;
         case 'If':
           nodeRoot = editor.value.getNodeFromId(idRoot);
-          code = 'If' + ' ' + nodeRoot.data.Expr1 + ' ' + nodeRoot.data.Operator + ' ' + nodeRoot.data.Expr2 + ' ' + ':\n\t' + value1;
+          code = 'if' + ' ' + nodeRoot.data.Expr1 + ' ' + nodeRoot.data.Operator + ' ' + nodeRoot.data.Expr2 + ' ' 
+          + ':\n' + value1 + '\n' + 'else:\n' +value2 ;
           break;
         case 'For':
           nodeRoot = editor.value.getNodeFromId(idRoot);
-          code = 'For i in range( ' + nodeRoot.data.Start + ' ,' + nodeRoot.data.Finish + '):\n\t' + value1;
+          code = 'for i in range( ' + nodeRoot.data.Start + ' ,' + nodeRoot.data.Finish + '):\n\t' + value1;
           break;
         case 'Block':
           code = value1;
@@ -257,7 +258,7 @@ export default {
         default:
           break;
       }
-
+      
       return code.toString();
 
     };
@@ -428,14 +429,13 @@ export default {
       //output_id =  hijos , input_id =padre
       nodesTree.forEach((node) => {
         if (connection.output_id == node.id) {//agregar el padre al hijo
-          let dataNodeChild = getDataFatherNode(node.id, connection.input_id);
+          let dataNodeChild = getDataFatherNode(node.id);
           editor.value.updateNodeDataFromId(node.id, dataNodeChild);
           node.father = connection.input_id;
 
         } else if (connection.input_id == node.id) { //agregar los hijos al padre
           if (node.token!='Block') {
             let dataNodeFather = getDataChildsNode(node.id, connection.output_id, connection.input_class);
-            editor.value.updateNodeDataFromId(node.id, dataNodeFather);
             node.childLeft = dataNodeFather.ChildLeft;
             node.childRight = dataNodeFather.ChildRight;
             node.value = dataNodeFather.Value;
@@ -448,9 +448,9 @@ export default {
         }
       });
 
-    };//yala
+    };
 
-    const getDataFatherNode = (idChild, idFather) => {
+    const getDataFatherNode = (idChild) => {
       const childSelect = editor.value.getNodeFromId(idChild);
       let dataNode = {};
       let name = childSelect.name;
@@ -473,13 +473,11 @@ export default {
           break;
         case 'If':
           dataNode = {
-            Father: idFather, ChildLeft: childSelect.data.ChildLeft, ChildRight: childSelect.data.ChildRight,
             Operator: childSelect.data.Operator, Expr1: childSelect.data.Expr1, Expr2: childSelect.data.Expr2,
           };
           break;
         case 'For':
           dataNode = {
-            Father: idFather, ChildLeft: childSelect.data.ChildLeft, ChildRight: childSelect.data.ChildRight,
             Start: childSelect.data.Start, Finish: childSelect.data.Finish,
           };
           break;
@@ -490,7 +488,7 @@ export default {
 
       return dataNode;
 
-    }//yala
+    }
 
     const getDataChildsNode = (idFather, idChild, input) => {
       const fatherSelect = editor.value.getNodeFromId(idFather);
@@ -514,24 +512,12 @@ export default {
           break;
         case 'If': {
           console.log('Padre es If');
-          let father = editor.value.getNodeFromId(idFather);
-          let child1 = father.data.ChildLeft;
-          let child2 = idChild;
-          if (input == 'input_1') {
-            child2 = father.data.ChildRight;
-            child1 = idChild;
-          }
-          dataNode = {
-            Father: father.data.Father, ChildLeft: child1, ChildRight: child2,
-            Expr1: father.data.Expr1, Operator: father.data.Operator, Expr2: father.data.Expr2,
-            Value: ''
-          };
-
+          dataNode = getDataChildsNodeofCodeBlock(idFather, idChild, input);
           break;
         }
         case 'For':
           console.log('Padre es For');
-          dataNode = {};
+          dataNode = getDataChildsNodeofCodeBlock(idFather, idChild, input);
           break;
         default:
           console.log('No permitido', name);
@@ -540,7 +526,7 @@ export default {
 
       return dataNode;
 
-    }//yala
+    }
 
     //funciones para especificar como agregar los hijos segun el tipo de nodo Padre
     const getDataChildsNodeOfBinOp = (idFather, idChild, input) => {
@@ -580,10 +566,10 @@ export default {
         id: idFather,
         value: { Number1: num1, Number2: num2, Result: result }
       });
-
-      console.log('get new data del nodo padre', dataNode);
+     
+      editor.value.updateNodeDataFromId(idFather, { Value: value });
       return dataNode;
-    }//yala
+    }
 
     const getValuesBinOp = (idFather, idChild, valueNew) => {
       const fatherSelect = getNodeFromNodesTree(idFather);
@@ -661,16 +647,31 @@ export default {
           break;
       }
 
-      dataNode = {Father: nodeSelect.father,ChildLeft: child1,ChildRight: child2,Value: value};
+      dataNode = {Father: nodeSelect.father,ChildLeft: child1,ChildRight: child2,Value:value};
 
       dispatch("setAssignAction", {
         id: idNode,
         value: { Variable: variable, Value: value }
       });
-
-      console.log({ Variable: variable, Value: value });
+      
+      editor.value.updateNodeDataFromId(idNode, { Variable: variable, Value: value });
       return dataNode;
-    }//yala
+    }
+
+    const getDataChildsNodeofCodeBlock = (idNode, idChild, input) => {
+          let father = getNodeFromNodesTree(idNode);
+          let child1 = father.childLeft;
+          let child2 = idChild;
+          if (input == 'input_1') {
+            child2 = father.childRight;
+            child1 = idChild;
+          }
+          let dataNode = {
+            Father: father.father, ChildLeft: child1, ChildRight: child2,
+            Value:0
+          };
+          return dataNode; 
+    }
 
     //actualizar data nodo BinOp/Assign cuando se actualiza la data del nodo Number
     const updateData = (id) => {
@@ -707,7 +708,7 @@ export default {
               }
               break;
             case 'Variable':
-              if (!isNaN(parseInt(node.data.variable))) {
+              if (!(node.data.variable === undefined)) {
                 nodeTree.variable = node.data.variable;
               }
               break;
@@ -909,7 +910,7 @@ export default {
         var token = ev.dataTransfer.getData("node");
         addNodeToDrawFlow(token, ev.clientX, ev.clientY);
       }
-    };//yala
+    };
 
     const enableDrop = (ev) => {
       ev.preventDefault();
@@ -924,7 +925,7 @@ export default {
           (editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)));
 
       setNodeType(name, pos_x, pos_y);
-    };//yala
+    };
 
     const setNodeType = (token, pos_x, pos_y) => {
       let data = {};
@@ -952,10 +953,10 @@ export default {
           editor.value.addNode('Variable', 0, 1, pos_x, pos_y, 'Variable', { Variable: '', Value: 0 }, 'Variable', 'vue');
           break;
         case 'If':
-          editor.value.addNode('If', 2, 1, pos_x, pos_y, 'If', { Father: null, ChildLeft: null, ChildRight: null, Operator: '', Expr1: 0, Expr2: 0 }, 'If', 'vue');
+          editor.value.addNode('If', 2, 1, pos_x, pos_y, 'If', { Operator: '<', Expr1: 0, Expr2: 0 }, 'If', 'vue');
           break;
         case 'For':
-          editor.value.addNode('For', 1, 1, pos_x, pos_y, 'For', { Father: null, ChildLeft: null, ChildRight: null, Start: 0, Finish: 0 }, 'For', 'vue');
+          editor.value.addNode('For', 1, 1, pos_x, pos_y, 'For', { Start: 0, Finish: 0 }, 'For', 'vue');
           break;
         case 'Block':
           editor.value.addNode('Block', 2, 1, pos_x, pos_y, 'Block', {  Value: 0 }, 'Block', 'vue');
@@ -965,7 +966,7 @@ export default {
           break;
       }
 
-    };//yala
+    };
 
     const generateCode = () => {
       var exportdata = editor.value.export();
@@ -1091,14 +1092,19 @@ export default {
           break;
         case 'If':
           taken = takenConnection(connection);
-          if ((nameChild != 'Else') && connection.input_class == 'input_1' && !taken) {
+          if ((nameChild != 'Variable') &&  !taken) {
             valid = true;
-          } else if (nameChild == 'Else' && connection.input_class == 'input_2' && !taken) {
+          } 
+          break;
+        case 'For':
+          taken = takenConnection(connection);
+          if (!taken && nameChild != 'Variable') {
             valid = true;
           }
           break;
-        case 'For':
-          if (!taken) {
+        case 'Block':
+          taken = takenConnectionBlock(connection);
+          if (!taken && nameChild != 'Variable') {
             valid = true;
           }
           break;
@@ -1113,19 +1119,30 @@ export default {
     }
 
     const takenConnection = (connection) => {
-      const father = editor.value.getNodeFromId(connection.input_id);
+      const father = getNodeFromNodesTree(connection.input_id);
       let taken = false;
 
       if (connection.input_class == 'input_1') {
-        if (father.data.ChildLeft != null) {
+        if (father.childLeft != null) {
           taken = true;
         }
 
       } else if (connection.input_class == 'input_2') {
-        if (father.data.ChildRight != null) {
+        if (father.childRight != null) {
           taken = true;
         }
       }
+      return taken;
+    }
+    const takenConnectionBlock = (connection) => {
+      const father = getNodeFromNodesTree(connection.input_id);
+      let taken = false;
+ 
+      father.childs.forEach(child => {
+        if (child.inputId == connection.input_class) {
+          taken = true;
+        }
+      });
       return taken;
     }
 
@@ -1164,6 +1181,9 @@ export default {
         });
         //openModalListPrograms();
       } catch (err) {
+        const myModal = Modal.getInstance(document.getElementById('exampleModal'));
+        myModal.hide();
+
         Swal.fire({
                 title: 'Error!',
                 text: 'No se pudo acceder a la Base de Datos',

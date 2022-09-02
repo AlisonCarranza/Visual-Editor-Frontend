@@ -32,7 +32,7 @@ export default {
          dataNode.value = editor.value.getNodeFromId(nodeId);
          newNumber.value = e.target.value;
 
-            if (e.target.value==''){//isNaN(parseInt(e.target.value))) { 
+            if (isNaN(parseInt(e.target.value))) { 
               newNumber.value = 0;
               console.log('nan',newNumber.value);
             }

@@ -22,11 +22,7 @@ export default {
         const nodeId = editor.value.nodeId;
 
         const changeExpr = () => {
-           let node = editor.value.getNodeFromId(nodeId);
-
-           editor.value.updateNodeDataFromId(nodeId,
-           {Father:node.data.Father, ChildLeft:node.data.ChildLeft, ChildRight: node.data.ChildRight,
-            Start:expr1.value, Finish:expr2.value});
+           editor.value.updateNodeDataFromId(nodeId,{Start:expr1.value, Finish:expr2.value});
            console.log(editor.value.getNodeFromId(nodeId));
         };
 
