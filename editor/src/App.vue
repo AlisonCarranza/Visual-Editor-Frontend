@@ -85,7 +85,7 @@
   </div>
 </template>
 
-<script>
+<script lang="js">
 import Drawflow from 'drawflow'
 import Swal from 'sweetalert2'
 import { Modal } from 'bootstrap'
@@ -99,6 +99,7 @@ import AssignVue from './components/Assign.vue';
 import IfVue from './components/If.vue';
 import ForVue from './components/For.vue';
 import BlockVue from './components/Block.vue';
+import PrintVue from './components/Print.vue';
 
 //vuex
 import { useStore } from "vuex";
@@ -180,6 +181,10 @@ export default {
         expression: "For",
         token: "For",
       },
+      {
+        expression: "Print",
+        token: "Print",
+      },
 
     ]);
 
@@ -190,9 +195,8 @@ export default {
     const pythonCode = ref("");
     const resultProgram = ref("");
     const listPrograms = ref({});
-    //api url
-    const apiUrl = ref("http://localhost:3000");
-    var param=0;
+    
+    var param =0;
     var listPagination = [];
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
@@ -253,7 +257,15 @@ export default {
           code = 'for i in range( ' + nodeRoot.data.Start + ' ,' + nodeRoot.data.Finish + '):\n\t' + value1;
           break;
         case 'Block':
-          code = value1;
+          if (value1 == '') {
+            code ='\t'+'0';
+          }else{
+            code = value1;
+          }
+          break;
+        case 'Print':
+          nodeRoot = editor.value.getNodeFromId(idRoot);
+          code = 'print("'+nodeRoot.data.Value+'")';
           break;
         default:
           break;
@@ -355,6 +367,15 @@ export default {
               expression: "Block",
               value: null,
               childs: [ ],
+            });
+          break;
+          case 'Print':
+            nodesTree.push({
+            id: node.id,
+            token: node.name,
+            father: null,
+            expression: "Print",
+            value: '',
             });
           break;
 
@@ -480,6 +501,9 @@ export default {
           dataNode = {
             Start: childSelect.data.Start, Finish: childSelect.data.Finish,
           };
+          break;
+        case 'Print':
+          dataNode = {Value: childSelect.data.Value};
           break;
         default:
           console.log('Tipo de nodo del hijo no permitido:', name);
@@ -961,6 +985,9 @@ export default {
         case 'Block':
           editor.value.addNode('Block', 2, 1, pos_x, pos_y, 'Block', {  Value: 0 }, 'Block', 'vue');
           break;
+        case 'Print':
+          editor.value.addNode('Print', 0, 1, pos_x, pos_y, 'Print', {  Value: ' ' }, 'Print', 'vue');
+          break;
         default:
           console.log('no se encontro');
           break;
@@ -1004,12 +1031,12 @@ export default {
           addProgram();
         } else if (result.isDenied) {
           runProgram();
-          openModalRun();
+          //openModalRun();
         }
       })
     }
 
-    const openModalRun = () => {
+    const openModalRun = async () => {
       Swal.fire({
         input: 'textarea',
         inputLabel: 'Shell',
@@ -1092,13 +1119,13 @@ export default {
           break;
         case 'If':
           taken = takenConnection(connection);
-          if ((nameChild != 'Variable') &&  !taken) {
+          if ((nameChild == 'Block') &&  !taken) {
             valid = true;
           } 
           break;
         case 'For':
           taken = takenConnection(connection);
-          if (!taken && nameChild != 'Variable') {
+          if (!taken && nameChild == 'Block') {
             valid = true;
           }
           break;
@@ -1155,7 +1182,7 @@ export default {
           headers: { "Content-Type": "application/json" },
         };
         const response = await fetch(
-          apiUrl.value + "/page/"+param,//+"/programs"
+          process.env.VUE_APP_ENDPOINT_PAGE + "/"+param,//+"/programs"
           requestOptions
         );
 
@@ -1201,19 +1228,33 @@ export default {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ Code: [pythonCode.value] }),
         };
-        console.log({ Code: [pythonCode.value] });
-        await fetch(apiUrl.value + "/programs", requestOptions);
-        Swal.fire({
+        const response = await fetch(process.env.VUE_APP_ENDPOINT_PROGRAMS, requestOptions);
+        console.log('respuesta add', response);
+
+        if (response.status != 201) {
+          Swal.fire({
+            position: "center",
+            icon: "error",
+            title: "No se puedo guardar. Error: "+response.status,
+            showConfirmButton: false,
+            timer: 1500,
+          });
+        }else{
+          Swal.fire({
           position: "center",
           icon: "success",
           title: "Program Saved",
           showConfirmButton: false,
           timer: 1500,
         });
+          
+
+        }
+
       } catch (err) {
           Swal.fire({
                 title: 'Error!',
-                text: 'No se pudo guardar',
+                text: 'Error con la conexion!',
                 icon: 'error',
                 confirmButtonText: 'Ok'
           });
@@ -1222,20 +1263,21 @@ export default {
 
     //ejecutar codigo
     const runProgram = async () => {
-      resultProgram.value = 'hola';
       try {
+        console.log('run',pythonCode.value);
         const requestOptions = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ Code: [pythonCode.value] }),
         };
         const response = await fetch(
-          apiUrl.value + "/run/program",
+          process.env.VUE_APP_ENDPOINT_RUN,
           requestOptions
         );
         const data = await response.json();
         console.log(data);
         resultProgram.value = data;
+        openModalRun();
       } catch (err) {
         console.log("run", err);
         Swal.fire({
@@ -1278,7 +1320,7 @@ export default {
     };
 
     onMounted(() => {
-
+      console.log(process.env.VUE_APP_RUTA_API);
       var id = document.getElementById("drawflow");
 
       // Pass render Vue 3 Instance
@@ -1299,6 +1341,7 @@ export default {
       editor.value.registerNode('If', IfVue, {}, {}, 'vue');
       editor.value.registerNode('For', ForVue, {}, {}, 'vue');
       editor.value.registerNode('Block', BlockVue, {}, {}, 'vue');
+      editor.value.registerNode('Print', PrintVue, {}, {}, 'vue');
 
       // Events!
       editor.value.on('nodeCreated', function (id) {
