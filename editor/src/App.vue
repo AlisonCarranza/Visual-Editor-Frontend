@@ -1,30 +1,30 @@
 <template>
 
   <div id="app">
-    <div class="container cuerpo">
+    <div class="container editor-body">
       <div class="row">
         <div class="col-3">
           <div class="mb-2">
-              <h3 style="text-align: center">Principal</h3>
-              <hr />
-              <div class="d-flex justify-content-center list-group-secondary">
-                <div class="btn-group-vertical" role="group" aria-label="Basic example">
-                  <button type="button" class="btn btn-primary" id="toggle-btn1" v-on:click="generateCode()">
-                    Get Code
-                  </button>
-                  <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="openModalListPrograms()">
-                    Program List 
-                  </button>
-                </div>
-              </div> 
-              <hr />
+            <h3 class="title-editor">Principal</h3>
+            <hr />
+            <div class="d-flex justify-content-center list-group-secondary">
+              <div class="btn-group-vertical" role="group" aria-label="Basic example">
+                <button type="button" class="btn btn-primary" id="toggle-btn1" v-on:click="generateCode()">
+                  Get Code
+                </button>
+                <button type="button" class="btn btn-primary" id="toggle-btn2" v-on:click="openModalListPrograms()">
+                  Program List
+                </button>
+              </div>
+            </div>
+            <hr />
+            <h3 class="mt-3 title-editor">Nodes</h3>
+            <hr />
           </div>
           <div class="wrapper">
-            <ul class="list-group barra">
-              <h3 style="text-align: center" class="mt-3">Operaciones</h3>
-              <hr />
-              <li class="list-group-item list-group-item-secondary" v-for="(n, id) in lista" :key="id" draggable="true" :data-node="n.token"
-                @dragstart="drag($event)" @dragover="enableDrop($event)">
+            <ul class="list-group navbar-editor">
+              <li class="list-group-item list-group-item-secondary" v-for="(n, id) in listNodes" :key="id"
+                draggable="true" :data-node="n.token" @dragstart="drag($event)" @dragover="enableDrop($event)">
                 <div class="card node" style="background-color: rgba(251, 47, 193,0.6);color:white">
                   <div class="card-body">
                     <h5 class="card-title">{{ n.token }}</h5>
@@ -32,11 +32,21 @@
                 </div>
               </li>
             </ul>
-          </div>         
+          </div>
         </div>
         <div class="col-9">
           <div id="drawflow" @drop="drop($event)" @dragover="enableDrop($event)">
-            
+            <div class="bar-zoom">
+              <div type="button" class="btn btn-primary mx-1" v-on:click="zoom_out()">
+                <font-awesome-icon icon="fa-solid fa-magnifying-glass-minus" size="lg" />
+              </div>
+              <div type="button" class="btn btn-primary mx-1" v-on:click="zoom_reset()">
+                <font-awesome-icon icon="fa-solid fa-magnifying-glass" size="lg" />
+              </div>
+              <div type="button" class="btn btn-primary mx-1" v-on:click="zoom_in()">
+                <font-awesome-icon icon="fa-solid fa-magnifying-glass-plus" size="lg" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -60,7 +70,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr @click="setCode(item.uid)" v-for="(item, index) in listPrograms" :key = "index">
+              <tr @click="setCode(item.uid)" v-for="(item, index) in listPrograms" :key="index">
                 <th scope="row">{{ index }}</th>
                 <td>Programa {{ item.uid }}</td>
               </tr>
@@ -85,12 +95,12 @@
   </div>
 </template>
 
-<script lang="js">
+<script>
 import Drawflow from 'drawflow'
 import Swal from 'sweetalert2'
 import { Modal } from 'bootstrap'
 
-import { h, getCurrentInstance, render, readonly, onMounted, shallowRef, ref } from 'vue'
+import { h, getCurrentInstance, render, onMounted, shallowRef, ref} from 'vue'
 
 import NumberVue from './components/Number.vue';
 import BinaryOperations from './components/BinaryOperations.vue';
@@ -104,6 +114,8 @@ import PrintVue from './components/Print.vue';
 //vuex
 import { useStore } from "vuex";
 
+import { listNodes,listNodeEditor } from './util';
+
 export default {
   name: 'App',
   components: {
@@ -114,125 +126,115 @@ export default {
     const editor = shallowRef({});
     const internalInstance = getCurrentInstance();
     const Vue = { version: 3, h, render };
-
     //almacenar como propiedad global el objeto editor
     internalInstance.appContext.app._context.config.globalProperties.$editor = editor;
 
     //acceso a store para manejar estados
     const { dispatch } = useStore();
 
-
-    const lista = readonly([
-      {
-        expression: "Block",
-        token: "Block",
-        value: null,
-      },
-      {
-        expression: "Declarative",
-        token: "Number",
-        value: null,
-      },
-      {
-        expression: "Variable",
-        token: "Variable",
-        value: null,
-      },
-      {
-        expression: "Assign",
-        token: "Assign",
-        operador: '=',
-        left: null,
-        right: null,
-      },
-      {
-        expression: "BinOp",
-        token: "Add",
-        operador: '+',
-        left: null,
-        right: null,
-      },
-      {
-        expression: "BinOp",
-        token: "Sub",
-        operador: '-',
-        left: null,
-        right: null,
-      },
-      {
-        expression: "BinOp",
-        token: "Mul",
-        operador: '+',
-        left: null,
-        right: null,
-      },
-      {
-        expression: "BinOp",
-        token: "Div",
-        operador: '-',
-        left: null,
-        right: null,
-      },
-      {
-        expression: "If",
-        token: "If",
-      },
-      {
-        expression: "For",
-        token: "For",
-      },
-      {
-        expression: "Print",
-        token: "Print",
-      },
-
-    ]);
-
-    var nodesTree = [];
-    //var root = null;
-
     //variables en las que se almacenan las respuesta del servidor
+    var nodesTree = [];
+
     const pythonCode = ref("");
     const resultProgram = ref("");
     const listPrograms = ref({});
     
-    var param =0;
+    var param = 0;
     var listPagination = [];
+
+    //funciones para agregar a drawflow
+    const drag = (ev) => {
+      ev.dataTransfer.setData("node", ev.target.getAttribute("data-node"));
+    };
+
+    const drop = (ev) => {
+      if (ev.type === "drop") {
+        ev.preventDefault();
+        var token = ev.dataTransfer.getData("node");
+        addNodeToDrawFlow(token, ev.clientX, ev.clientY);
+      }
+    };
+
+    const enableDrop = (ev) => {
+      ev.preventDefault();
+    };
+
+    const addNodeToDrawFlow = (name, pos_x, pos_y) => {
+      pos_x = pos_x * (editor.value.precanvas.clientWidth / (editor.value.precanvas.clientWidth * editor.value.zoom)) - (editor.value.precanvas.getBoundingClientRect().x * (editor.value.precanvas.clientWidth / (editor.value.precanvas.clientWidth * editor.value.zoom)));
+      pos_y = pos_y *
+        (editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)) -
+        (editor.value.precanvas.getBoundingClientRect().y *
+          (editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)));
+
+      setNodeType(name, pos_x, pos_y);
+    };
+
+    const setNodeType = (token, pos_x, pos_y) => {
+      listNodeEditor.forEach(node => {
+        if (node.token == token) {
+          editor.value.addNode(node.token,node.inputs, 1, pos_x, pos_y, node.token,node.value, node.token, 'vue');
+        }
+      });
+    };
 
     //funcion interpreter este sera el encargado de pasar del ast a sintaxis python
     const interpreter = () => {
       let idRoot = 0;
+      let nodesWithoutFather = 0;
       nodesTree.forEach(node => {
         if (node.father == null) {
-          idRoot = node.id
+          idRoot = node.id;
+          nodesWithoutFather = nodesWithoutFather +1;
         }
       });
-      console.log('a ver raiz',idRoot);
-      pythonCode.value = visitNodePostOrden(idRoot);
-      console.log('CODIGO OBTENIDO:', pythonCode.value);
+      console.log("nodos huerfanos",nodesWithoutFather);
+      nodesWithoutFather===1 ? (
+        pythonCode.value = visitNodesTree(idRoot),
+        openModalCode()
+      ) : (
+        openModalPersonalize("Info!!!","Don't exist a root node",'info',true,0)
+      ); 
     };
 
-    const visitNodePostOrden = (idRoot) => {
+    const openModalPersonalize = (title,text,icon,show) =>{
+      Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                showConfirmButton: show,
+                timer:0,
+        })
+    }
+    
+    /*Visit each node */
+    const visitNodesTree = (idRoot) => {
       let value1 = '0';
       let value2 = '0';
-      let code = '';
 
       let nodeRoot = getNodeFromNodesTree(idRoot);
+
       if (nodeRoot.token == 'Block') {
-        console.log('entro',nodeRoot);
         value1='';
         nodeRoot.childs.forEach(child => {
-          value1= value1+'\t'+visitNodePostOrden(child.idChild)+'\n'
-          //value1 = value1+'\t'+child.idChild+'\n';
+          value1= value1+'\t'+visitNodesTree(child.idChild)+'\n'
         });
-      }else{ 
-        if (nodeRoot.childLeft != null) {
-          value1 = visitNodePostOrden(nodeRoot.childLeft);
-        }
-        if (nodeRoot.childRight != null) {
-          value2 = visitNodePostOrden(nodeRoot.childRight);
-        }
+        return codeAccordingTypeNode(value1,value2,idRoot); 
       }
+      
+
+      if (nodeRoot.childLeft != null) {
+        value1 = visitNodesTree(nodeRoot.childLeft);
+      }
+      if (nodeRoot.childRight != null) {
+        value2 = visitNodesTree(nodeRoot.childRight);
+      }
+      return codeAccordingTypeNode(value1,value2,idRoot); 
+
+    };
+
+    const codeAccordingTypeNode = (value1,value2,idRoot) =>{
+      let nodeRoot = getNodeFromNodesTree(idRoot);
+      let code = "";
 
       switch (nodeRoot.expression) {
         case 'BinOp':
@@ -270,169 +272,76 @@ export default {
         default:
           break;
       }
-      
       return code.toString();
-
-    };
-
-    //funcion para crear arbol
-    const createTree = (idNode) => {
-      addNode(idNode);
-    };
-
-    const addNode = (idNode) => {
-      var node = editor.value.getNodeFromId(idNode);
-      var op = '';
-      lista.forEach(nodeType => {
-        if (nodeType.token == node.name) {
-          op = nodeType.operador;
-        }
-      });
-
-      if (node.name == 'Add' || node.name == 'Sub' || node.name == 'Mul' || node.name == 'Div') {
-        nodesTree.push({
-          id: node.id,
-          token: node.name,
-          father: null,
-          expression: 'BinOp',
-          value: 0,
-          operador: op,
-          childLeft: null,
-          childRight: null
-        });
-
-      } else {
-        switch (node.name) {
-          case 'Number':
-            nodesTree.push({
-              id: node.id,
-              token: node.name,
-              father: null,
-              expression: "Declarative",
-              value: 0
-            });
-
-            break;
-          case 'Assign':
-            nodesTree.push({
-              id: node.id,
-              token: node.name,
-              father: null,
-              expression: "Assign",
-              value: 0,
-              operador: op,
-              childLeft: null,
-              childRight: null
-            });
-
-            break;
-          case 'Variable':
-            nodesTree.push({
-              id: node.id,
-              token: node.name,
-              father: null,
-              expression: "Variable",
-              value: 0,
-              variable: null
-            });
-
-            break;
-          case 'If':
-            nodesTree.push({
-              id: node.id,
-              token: node.name,
-              father: null,
-              expression: "If",
-              value: null,
-              childLeft: null,
-              childRight: null,
-            });
-            break;
-          case 'For':
-            nodesTree.push({
-              id: node.id,
-              token: node.name,
-              father: null,
-              expression: "For",
-              value: null,
-              childLeft: null,
-              childRight: null,
-            });
-          break;
-          case 'Block':
-            nodesTree.push({
-              id: node.id,
-              token: node.name,
-              father: null,
-              expression: "Block",
-              value: null,
-              childs: [ ],
-            });
-          break;
-          case 'Print':
-            nodesTree.push({
-            id: node.id,
-            token: node.name,
-            father: null,
-            expression: "Print",
-            value: '',
-            });
-          break;
-
-          default:
-            break;
-        }
-
-      }
-    };
-    //remove 
-    const deleteNode = (id) => {
-      removeDataNodeofOthersNodes(id,'delete');
     }
 
-    const removeDataNodeofOthersNodes = (id,type) => {
-      console.log('aja',id);
-      let idNodeDelete = 0;
-      nodesTree.forEach((node, index) => {
-        if (node.father == id) {
+    //Add node to nodesTree
+    const addNode = (idNode) => {
+      var nodeEditor = editor.value.getNodeFromId(idNode);
+      var newNode = null;
+
+      listNodes.forEach(node => {
+        if (node.token == nodeEditor.name) {
+          newNode = JSON.parse(JSON.stringify(node));
+          newNode.id = idNode;
+          nodesTree.push(newNode);
+        }
+      });
+    };
+
+    /*Remove node of nodesTree */
+    const deleteNode = (id) => {
+      removeNode(id);
+    }
+
+    /*Remove data connection of linked nodes */
+    const deleteConnection = (connection) => {
+      updateData(connection.output_id);
+      removeDataNodeofOthersNodes(connection.output_id,connection.input_id);
+
+    }
+
+    /*Remove data of linked nodes*/
+    const removeDataNodeofOthersNodes = (idChild,idFather) => {
+      nodesTree.forEach((node) => {
+        if (node.id == idChild) {
           node.father = null;
         }
-        
-        if(node.expression=='Block'){ 
-          node.childs.forEach((child,index)=> {
-             if (child.idChild == id) {
-                 node.childs.splice(index,1);
-             }
-          });
+      });
 
-        }else {
-            if (node.childLeft == id) {
-              node.childLeft = null;
-            } else if (node.childRight == id) {
-              node.childRight = null;
-            }
-        }
-
-        if (node.id == id) {
-          idNodeDelete = index
-          if (type === 'update') {
-            node.father=null;
+      nodesTree.forEach(node => {
+        if(node.id == idFather){
+          if(node.expression=='Block'){ 
+            node.childs.forEach((child,index)=> {
+              if (child.idChild == idChild) {
+                  node.childs.splice(index,1);
+              }
+            });
+          }else {
+              if (node.childLeft == idChild) {
+                node.childLeft = null;
+              } else if (node.childRight == idChild) {
+                node.childRight = null;
+              }
           }
+        }
+      });  
+    }
+
+    const removeNode = (id) =>{
+      let idNode = null;
+      nodesTree.forEach((node,index) => {
+        if (node.id == id) {
+          idNode = index; 
         }
       });
 
-      if (type==='delete') {
-        nodesTree.splice(idNodeDelete, 1);
+      if (idNode!=null) {
+        nodesTree.splice(idNode, 1);
       }
-      
     }
-
-    const deleteConnection = (connection) => {
-      console.log(connection);
-      updateData(connection.output_id);
-      removeDataNodeofOthersNodes(connection.output_id,'update');
-    }
-
+    
+    /*Get node from nodesTree */
     const getNodeFromNodesTree = (id) => {
       let nodeSelect = {};
       nodesTree.forEach(node => {
@@ -445,7 +354,7 @@ export default {
     }
 
 
-    //cargar conecciones en ambos nodos
+    /*Load data connection in linked nodes */
     const updateNode = (connection) => {
       //output_id =  hijos , input_id =padre
       nodesTree.forEach((node) => {
@@ -470,7 +379,8 @@ export default {
       });
 
     };
-
+    
+    /*Load data connection in father node */
     const getDataFatherNode = (idChild) => {
       const childSelect = editor.value.getNodeFromId(idChild);
       let dataNode = {};
@@ -514,6 +424,7 @@ export default {
 
     }
 
+    /*Load data connection in child node */
     const getDataChildsNode = (idFather, idChild, input) => {
       const fatherSelect = editor.value.getNodeFromId(idFather);
       let dataNode = {};
@@ -552,7 +463,7 @@ export default {
 
     }
 
-    //funciones para especificar como agregar los hijos segun el tipo de nodo Padre
+    /*Get id child and values of Binary Operation Node*/
     const getDataChildsNodeOfBinOp = (idFather, idChild, input) => {
       let Child = editor.value.getNodeFromId(idChild);
       let value = Child.data.Value;
@@ -594,7 +505,8 @@ export default {
       editor.value.updateNodeDataFromId(idFather, { Value: value });
       return dataNode;
     }
-
+    
+    /*Get updated values of Binary Operation Node*/
     const getValuesBinOp = (idFather, idChild, valueNew) => {
       const fatherSelect = getNodeFromNodesTree(idFather);
       let brother = null;
@@ -602,8 +514,6 @@ export default {
       let num1 = 0;
       let num2 = 0;
       let result = 0;
-
-      console.log('get values bin op',fatherSelect);
 
       if (fatherSelect.childLeft == idChild) {
         num1 = valueNew;
@@ -620,12 +530,7 @@ export default {
       }
 
       result = getResultOperation(parseInt(num1), parseInt(num2), fatherSelect.token);
-      let dataNode = {
-        Father: fatherSelect.father,
-        ChildLeft: fatherSelect.childLeft,
-        ChildRight: fatherSelect.childRight,
-        Value: result
-      };
+      let dataNode = {Value: result};
 
       dispatch("setOperationAction", {
         id: idFather,
@@ -635,7 +540,8 @@ export default {
       return dataNode;
 
     }
-
+    
+    /*Get id child and values of Assign Node*/
     const getDataChildsNodeOfAssign = (idNode, idChild, input) => {
       const nodeSelect = getNodeFromNodesTree(idNode);
       let child = editor.value.getNodeFromId(idChild);
@@ -681,7 +587,8 @@ export default {
       editor.value.updateNodeDataFromId(idNode, { Variable: variable, Value: value });
       return dataNode;
     }
-
+    
+    /*Get id child of Others Node*/
     const getDataChildsNodeofCodeBlock = (idNode, idChild, input) => {
           let father = getNodeFromNodesTree(idNode);
           let child1 = father.childLeft;
@@ -697,26 +604,20 @@ export default {
           return dataNode; 
     }
 
-    //actualizar data nodo BinOp/Assign cuando se actualiza la data del nodo Number
+    /*Update data of ascending nodes */
     const updateData = (id) => {
       const node = getNodeFromNodesTree(id);
-      console.log('actualizar data del nodo', node);
       const idFather = node.father;
+
+      const nodeEditor = editor.value.getNodeFromId(id);
       updateNodesTree(id);
 
       if (idFather != null) {
-        switch (node.token) {
-          case 'Number':
-            updateDataFatherOfNodeNumber(id);
-            break;
-          case 'Add':
-            updateDataFatherOfNodeNumber(id);
-            break;
-          case 'Variable':
-            updateDataFatherOfNodeVariable(id,idFather);
-            break;
-          default:
-            break;
+        const father = editor.value.getNodeFromId(idFather);
+        if (node.expression== 'Variable' ) {
+          updateDataFatherOfNodeVariable(nodeEditor.data.variable,father.data.value,idFather);
+        } else if (node.expression == 'Declarative'|| node.expression == 'BinOp' ){
+          updateDataFatherOfNodeNumber(id,idFather,nodeEditor.data.number);
         }
       }
     }
@@ -743,41 +644,26 @@ export default {
       });
     }
 
-    const updateDataFatherOfNodeNumber = (id) => {
-      const node = getNodeFromNodesTree(id);
-      const idFather = node.father;
-      const Father = editor.value.getNodeFromId(idFather);
-      let name = Father.name;
+    const updateDataFatherOfNodeNumber = (id,idFather,number) => {
+      isNaN(parseInt(number))? number = 0: number = parseInt(number)
+      const father = getNodeFromNodesTree(idFather);
+      const typeNode = father.expression;
 
-      if (name == 'Add' || name == 'Sub' || name == 'Mul' || name == 'Div') {
-        name = 'BinOp';
-      }
-
-      switch (name) {
+      switch (typeNode) {
         case 'Assign':
-          updateNodeFatherAssign(id,idFather);
+          updateNodeFatherAssign(idFather,number);
           break;
         case 'BinOp':
-          updateNodeFatherBinOp(id,idFather);
+          updateNodeFatherBinOp(id,idFather,number);
           break;
-
         default:
           break;
       }
 
     }
 
-    const updateNodeFatherBinOp = (id,idFather) => {
-      const node = editor.value.getNodeFromId(id);
-      let number = parseInt(node.data.number);
-
-      if (isNaN(parseInt(node.data.number))) {
-        number = 0;
-      }
-      console.log('prueba',number);
-
+    const updateNodeFatherBinOp = (id,idFather,number) => {
       let dataNode = getValuesBinOp(idFather, id, number);
-
       editor.value.updateNodeDataFromId(idFather, {Value:dataNode.Value});
 
       nodesTree.forEach(node => {
@@ -785,17 +671,11 @@ export default {
           node.value = dataNode.Value;
         }
       });
-      updateRecursiveArithOp(idFather, dataNode.Value);
+      updateRecursiveArithOp(idFather,dataNode.Value);
     }
 
-    const updateNodeFatherAssign = (id,idFather) => {
-      const node = editor.value.getNodeFromId(id);
+    const updateNodeFatherAssign = (idFather,number) => {
       const Father = getNodeFromNodesTree(idFather);
-
-      let number = parseInt(node.data.number);
-      if (isNaN(parseInt(node.data.number))) {
-        number = 0;
-      }
 
       let variable = '';
       if (Father.childLeft != null) {
@@ -813,58 +693,23 @@ export default {
       dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: number } });
     }
 
-    const updateDataFatherOfNodeVariable = (id,idFather) => {
-      const node = editor.value.getNodeFromId(id);
-      let variable = node.data.variable;
-    
-      const Father = editor.value.getNodeFromId(idFather);
-
-      editor.value.updateNodeDataFromId(idFather, {Value: Father.data.Value});
-      dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: Father.data.Value } });
+    /*Update values of Assign Node in forntend*/
+    const updateDataFatherOfNodeVariable = (variable,value,idFather) => {
+      dispatch("setAssignAction", { id: idFather, value: { Variable: variable, Value: value } });
     }
 
     //recursividad nodo Operaciones Aritmeticas
-    const updateRecursiveArithOp = (idFather, newValue) => {
-
+    const updateRecursiveArithOp = (idFather,newValue) => {
       const nodeFather = getNodeFromNodesTree(idFather);
       const idNextFather = nodeFather.father;
 
       if (idNextFather != null) {
         const nextFather = getNodeFromNodesTree(idNextFather);
-
-        if (nextFather.token == 'Add' || nextFather.token == 'Sub' || nextFather.token == 'Mul' || nextFather.token == 'Div') {
-
-          let dataNode = getValuesBinOp(idNextFather, idFather, newValue);
-          editor.value.updateNodeDataFromId(idNextFather, {Value:dataNode.Value});
-
-          nodesTree.forEach(node => {
-            if (node.id == idNextFather) {
-              node.value = dataNode.Value;
-            }
-          });
-
-          updateRecursiveArithOp(idNextFather, dataNode.Value);
-
+        if (nextFather.expression == 'BinOp') {
+          updateNodeFatherBinOp (idFather,idNextFather,newValue);
         } else if (nextFather.token == 'Assign') {
           let number = parseInt(newValue);
-          let variable = '';
-
-          if (nextFather.childLeft != null) {
-            let childVar = editor.value.getNodeFromId(nextFather.childLeft);
-            variable = childVar.data.Variable;
-          }
-
-          editor.value.updateNodeDataFromId(idNextFather, { Value: number});
-
-          nodesTree.forEach(node => {
-            if (node.id == idNextFather) {
-              node.value = number;
-            }
-          });
-
-          dispatch("setAssignAction", { id: idNextFather, value: { Variable: variable, Value: number } });
-          console.log('dispath qu', { Variable: variable, Value: number });
-
+          updateNodeFatherAssign (idNextFather,number);
         }
       }
     };
@@ -898,111 +743,11 @@ export default {
       return result;
     };
 
-    var mobile_item_selec = "";
-    var mobile_last_move = null;
-
-
-
-    const drag = (ev) => {
-      if (ev.type === "touchstart") {
-        mobile_item_selec = ev.target
-          .closest(".drag-drawflow")
-          .getAttribute("data-node");
-      } else {
-        ev.dataTransfer.setData("node", ev.target.getAttribute("data-node"));
-      }
-    };
-
-    const drop = (ev) => {
-      if (ev.type === "touchend") {
-        var parentdrawflow = document
-          .elementFromPoint(
-            mobile_last_move.touches[0].clientX,
-            mobile_last_move.touches[0].clientY
-          )
-          .closest("#drawflow");
-        if (parentdrawflow != null) {
-          addNodeToDrawFlow(
-            mobile_item_selec,
-            mobile_last_move.touches[0].clientX,
-            mobile_last_move.touches[0].clientY
-          );
-        }
-        mobile_item_selec = "";
-      } else {
-        ev.preventDefault();
-        var token = ev.dataTransfer.getData("node");
-        addNodeToDrawFlow(token, ev.clientX, ev.clientY);
-      }
-    };
-
-    const enableDrop = (ev) => {
-      ev.preventDefault();
-    };
-
-
-    const addNodeToDrawFlow = (name, pos_x, pos_y) => {
-      pos_x = pos_x * (editor.value.precanvas.clientWidth / (editor.value.precanvas.clientWidth * editor.value.zoom)) - (editor.value.precanvas.getBoundingClientRect().x * (editor.value.precanvas.clientWidth / (editor.value.precanvas.clientWidth * editor.value.zoom)));
-      pos_y = pos_y *
-        (editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)) -
-        (editor.value.precanvas.getBoundingClientRect().y *
-          (editor.value.precanvas.clientHeight / (editor.value.precanvas.clientHeight * editor.value.zoom)));
-
-      setNodeType(name, pos_x, pos_y);
-    };
-
-    const setNodeType = (token, pos_x, pos_y) => {
-      let data = {};
-      let name = '';
-      let arithmeticOp = '';
-
-      lista.forEach(nodeType => {
-        if (nodeType.token == token) {
-          data = nodeType;
-          name = nodeType.expression;
-        }
-      });
-      switch (name) {
-        case 'BinOp':
-          arithmeticOp = data.token;
-          editor.value.addNode(arithmeticOp, 2, 1, pos_x, pos_y, arithmeticOp, { Value: 0 }, arithmeticOp, 'vue');
-          break;
-        case 'Declarative':
-          editor.value.addNode('Number', 0, 1, pos_x, pos_y, 'Number', { Value: 0 }, 'Number', 'vue');
-          break;
-        case 'Assign':
-          editor.value.addNode('Assign', 2, 1, pos_x, pos_y, 'Assign', {  Value: 0 }, 'Assign', 'vue');
-          break;
-        case 'Variable':
-          editor.value.addNode('Variable', 0, 1, pos_x, pos_y, 'Variable', { Variable: '', Value: 0 }, 'Variable', 'vue');
-          break;
-        case 'If':
-          editor.value.addNode('If', 2, 1, pos_x, pos_y, 'If', { Operator: '<', Expr1: 0, Expr2: 0 }, 'If', 'vue');
-          break;
-        case 'For':
-          editor.value.addNode('For', 1, 1, pos_x, pos_y, 'For', { Start: 0, Finish: 0 }, 'For', 'vue');
-          break;
-        case 'Block':
-          editor.value.addNode('Block', 2, 1, pos_x, pos_y, 'Block', {  Value: 0 }, 'Block', 'vue');
-          break;
-        case 'Print':
-          editor.value.addNode('Print', 0, 1, pos_x, pos_y, 'Print', {  Value: ' ' }, 'Print', 'vue');
-          break;
-        default:
-          console.log('no se encontro');
-          break;
-      }
-
-    };
-
     const generateCode = () => {
       var exportdata = editor.value.export();
       console.log('nodetree', nodesTree);
       console.log(Object.values(exportdata.drawflow.Home.data));
       interpreter();
-
-      //Ventana Modal visualizacion code
-      openModalCode();
     };
 
     const openModalCode = () => {
@@ -1041,7 +786,7 @@ export default {
         input: 'textarea',
         inputLabel: 'Shell',
         inputValue: resultProgram.value,
-        inputPlaceholder: 'Type your message here...',
+        inputPlaceholder: 'Code here...',
         inputAttributes: {
           'aria-label': 'Type your message here',
           'disabled': true,
@@ -1063,10 +808,10 @@ export default {
     }
 
     const openModalListPrograms = async () =>{
-      const myModal = new Modal(document.getElementById('exampleModal'),{})
-      myModal.show();
       param=0;
       getPrograms();
+      const myModal = new Modal(document.getElementById('exampleModal'),{})
+      myModal.show();
     }
     const nextPage = async (id) =>{
       if (id===1) { 
@@ -1185,39 +930,34 @@ export default {
           process.env.VUE_APP_ENDPOINT_PAGE + "/"+param,//+"/programs"
           requestOptions
         );
+        if (response.status != 200) {
+          openModalPersonalize("Error!!!","Data don't found",'error',false,1500)
+        }else{
+          const json = await response.json();
+          listPrograms.value = json.queryPrograms;//json.queryAllPrograms;
 
-        const json = await response.json();
-        listPrograms.value = json.queryPrograms;//json.queryAllPrograms;
-
-        listPrograms.value.forEach((program,index)=> {
-           if (index == listPrograms.value.length-1) {
-            if (listPagination.length>0) {
-              let repetido = false;
-              listPagination.forEach(page => {
-                if (page.previus==param && page.next==program.uid) {
-                  repetido = true;
+          listPrograms.value.forEach((program,index)=> {
+            if (index == listPrograms.value.length-1) {
+              if (listPagination.length>0) {
+                let repetido = false;
+                listPagination.forEach(page => {
+                  if (page.previus==param && page.next==program.uid) {
+                    repetido = true;
+                  }
+                });
+                if (!repetido) {
+                  listPagination.push({previus:param,next:program.uid});
                 }
-              });
-              if (!repetido) {
+              } else {
                 listPagination.push({previus:param,next:program.uid});
               }
-            } else {
-              listPagination.push({previus:param,next:program.uid});
             }
-           }
-        });
-        //openModalListPrograms();
+          });
+        }
       } catch (err) {
         const myModal = Modal.getInstance(document.getElementById('exampleModal'));
         myModal.hide();
-
-        Swal.fire({
-                title: 'Error!',
-                text: 'No se pudo acceder a la Base de Datos',
-                icon: 'error',
-                confirmButtonText: 'Ok'
-          });
-        console.log("get", err);
+        openModalPersonalize("Error!!!","Server connection refused",'error',true,0)
       }
     };
     //POST -- si funciona
@@ -1226,78 +966,53 @@ export default {
         const requestOptions = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ Code: [pythonCode.value] }),
+          body: JSON.stringify({ code: [pythonCode.value] }),
         };
         const response = await fetch(process.env.VUE_APP_ENDPOINT_PROGRAMS, requestOptions);
-        console.log('respuesta add', response);
-
-        if (response.status != 201) {
-          Swal.fire({
-            position: "center",
-            icon: "error",
-            title: "No se puedo guardar. Error: "+response.status,
-            showConfirmButton: false,
-            timer: 1500,
-          });
-        }else{
-          Swal.fire({
-          position: "center",
-          icon: "success",
-          title: "Program Saved",
-          showConfirmButton: false,
-          timer: 1500,
-        });
-          
-
-        }
+        
+        response.status != 201 ? 
+          openModalPersonalize("Error!!!","Could not save code.ERROR:"+response.status,'error',false,1500)
+        :  
+          openModalPersonalize("Success!!!","Code Saved!",'success',false,1500)
 
       } catch (err) {
-          Swal.fire({
-                title: 'Error!',
-                text: 'Error con la conexion!',
-                icon: 'error',
-                confirmButtonText: 'Ok'
-          });
+          openModalPersonalize("Error!!!","Server conecction refused",'error',false,1500)
       }
     };
 
-    //ejecutar codigo
+    /*Asynchronous requests to the server to execute program */
     const runProgram = async () => {
       try {
         console.log('run',pythonCode.value);
         const requestOptions = {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ Code: [pythonCode.value] }),
+          body: JSON.stringify({ code: [pythonCode.value] }),
         };
         const response = await fetch(
           process.env.VUE_APP_ENDPOINT_RUN,
           requestOptions
         );
         const data = await response.json();
-        console.log(data);
-        resultProgram.value = data;
-        openModalRun();
+
+        response.status != 200?( 
+          openModalPersonalize("Error!!!","Could not execute code.ERROR:"+response.status,'error',false,1500)
+        ):(
+          resultProgram.value = data,
+          openModalRun()
+        );
       } catch (err) {
-        console.log("run", err);
-        Swal.fire({
-                title: 'Error!',
-                text: 'No se puede ejecutar el programa. Problemas de acceso.',
-                icon: 'error',
-                confirmButtonText: 'Ok'
-        });
+        openModalPersonalize("Error!!!","Server connection refused",'error',false,1500);
       }
     };
 
-    //cargar listNodes de progrmas en el select
+    /*Get a program from list of programs*/
     const setCode = (uid) => {
           const myModal = Modal.getInstance(document.getElementById('exampleModal'));
           myModal.hide();
 
           try{ 
             const code = listPrograms.value.find((x) => x.uid == uid);
-            //const code = listPrograms.value[index];
-            console.log('codigo',code)
             pythonCode.value = code.Code[0];
 
             Swal.fire({
@@ -1310,26 +1025,28 @@ export default {
               }
             })
           } catch (error) {
-            Swal.fire({
-                title: 'Error!',
-                text: 'El programa seleccionado no se pudo encontrar',
-                icon: 'error',
-                confirmButtonText: 'Ok'
-            });
+            openModalPersonalize("Error!!!","Program not Found",'error',false,1500)
           } 
     };
+    
+    /*Functions for zoom control*/
+    const zoom_out = () => {
+      editor.value.zoom_out();
+    }
+    const zoom_in = () => {
+      editor.value.zoom_in();
+    }
+    const zoom_reset = () => {
+      editor.value.zoom_reset();
+    }
 
     onMounted(() => {
-      console.log(process.env.VUE_APP_RUTA_API);
       var id = document.getElementById("drawflow");
-
       // Pass render Vue 3 Instance
       editor.value = new Drawflow(id, Vue, internalInstance.appContext.app._context);
       editor.value.start();
 
-      //////////////////////////////////////////////////////////////////////////////////////////////////////
-
-      //registrar componentes
+      //components
       editor.value.registerNode('Number', NumberVue, {}, {}, 'vue');
       editor.value.registerNode('Add', BinaryOperations, { title: 'Add' }, {}, 'vue');
       editor.value.registerNode('Sub', BinaryOperations, { title: 'Sub' }, {}, 'vue');
@@ -1343,36 +1060,30 @@ export default {
       editor.value.registerNode('Block', BlockVue, {}, {}, 'vue');
       editor.value.registerNode('Print', PrintVue, {}, {}, 'vue');
 
-      // Events!
+      // Events
       editor.value.on('nodeCreated', function (id) {
         console.log("Node created " + id);
-        createTree(id); //caundo se cree un nuevo nodo se almacenara en la lista nodos
+        addNode(id); 
       })
 
-      // cuando se cree la conexion entre nodos se actualizara el arbol
+      /*When create a conecction update nodes data */
       editor.value.on('connectionCreated', function (connection) {
-        console.log('Connection created');
-        console.log(connection);
         let connectionValid = evalutedConnection(connection);
         if (connectionValid) {
           updateNode(connection);
         } else {
           editor.value.removeSingleConnection(connection.output_id, connection.input_id, connection.output_class, connection.input_class);
-          Swal.fire({
-            title: 'Warning!',
-            text: 'Conexion no valida',
-            icon: 'warning',
-            confirmButtonText: 'Ok'
-          });
+          openModalPersonalize("Warning!!!","Invalid node connection",'warning',true,0)
         }
       })
 
+      /*Update data of ascending nodes */
       editor.value.on('nodeDataChanged', function (id) {
-        //actualizar datos heredados a otros nodos
         console.log('id del nodo que se actualizo', id);
         updateData(id);
       })
-
+      
+      /*Update data of linked nodes and remove of nodesTree*/
       editor.value.on('connectionRemoved', function (connection) {
         console.log("connection eliminada ", connection);
         deleteConnection(connection);
@@ -1385,7 +1096,7 @@ export default {
 
     });
 
-    return {nextPage, openModalListPrograms, getPrograms ,pythonCode, evalutedConnection, updateRecursiveArithOp, getResultOperation, setNodeType, lista, setCode, listPrograms, drag, drop, enableDrop, generateCode, interpreter, createTree, addNode, updateNode, updateData };
+    return {zoom_reset,zoom_out,zoom_in,nextPage, openModalListPrograms, getPrograms ,pythonCode, evalutedConnection, updateRecursiveArithOp, getResultOperation, setNodeType, listNodes, setCode, listPrograms, drag, drop, enableDrop, generateCode, interpreter, addNode, updateNode, updateData };
 
   }
 
@@ -1394,22 +1105,46 @@ export default {
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css?family=Roboto+Condensed');
 
-tbody tr:hover{ 
+.title-editor {
+  color: rgb(169, 112, 177);
+  font-size: 2.5em;
+  font-family: 'roboto', sans-serif;
+  text-align: center;
+}
+
+.bar-zoom {
+  float: right;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  font-size: 24px;
+  color: white;
+  padding: 5px 10px;
+  background-color: rgb(169, 112, 177);
+  border-radius: 5px;
+  border: 1px none rgb(169, 112, 177);
+  box-shadow: 0 0 30px 0 rgb(0 0 0 / 20%), 0 5px 5px 0 rgb(0 0 0 / 24%);
+  z-index: 5;
+}
+
+tbody tr:hover {
   cursor: pointer;
   background: rgba(223, 237, 244);
   color: rgba(5, 44, 64, 1);
   border: 1px solid rgba(223, 237, 244);
   -webkit-box-shadow: 0px 1px 8px 1px rgba(78, 169, 255, 1);
-  box-shadow:0px 1px 8px 1px rgba(78, 169, 255, 1);
+  box-shadow: 0px 1px 8px 1px rgba(78, 169, 255, 1);
 }
 
 .wrapper {
-    width: 100%;
-    height: calc(100vh - 250px);
+  width: 100%;
+  height: calc(100vh - 250px);
 }
 
-.barra{
+.navbar-editor {
   overflow: auto !important;
   height: 100%;
   border-right: 1px solid #e2e3e5;
@@ -1469,7 +1204,7 @@ tbody tr:hover{
   text-align: center;
 }
 
-.cuerpo {
+.editor-body {
   border-radius: 10px;
   border: 1px none rgb(169, 112, 177);
   box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.2), 0 5px 5px 0 rgba(0, 0, 0, 0.24);
@@ -1479,9 +1214,9 @@ tbody tr:hover{
 }
 
 .swal2-textarea {
-  height: 6.75em;
+  height: 12.75em;
   padding: .75em;
   background-color: #282c34;
+  color: #cfd0d1;
 }
-
 </style>

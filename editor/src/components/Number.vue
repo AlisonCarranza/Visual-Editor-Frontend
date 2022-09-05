@@ -37,7 +37,7 @@ export default {
               console.log('nan',newNumber.value);
             }
 
-            editor.value.updateNodeDataFromId(nodeId, {Father:dataNode.value.data.Father,Value: parseInt(newNumber.value)});
+            editor.value.updateNodeDataFromId(nodeId, {Value: parseInt(newNumber.value)});
             console.log('editor',editor.value.getNodeFromId(nodeId));
 
             dispatch("setNumberAction", {id: nodeId, value: parseInt(e.target.value)});
